@@ -6,7 +6,7 @@
     "last 2 Chrome versions"
   ],
   "scripts": {
-    "build:client": "parcel build src/index.html",
+    "build": "parcel build src/index.html",
     "start": "parcel src/index.html src/worker/index.js",
     "clean": "rm -rf .cache dist"
   },
