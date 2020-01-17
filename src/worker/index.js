@@ -16,9 +16,20 @@ self.onmessage = ({ data: { code } }) => {
         ${ns}.__console_log = console.log;
         console.log = (...args) => ${ns}._logs.push(args);
         ${ns}.cache = {};
+        ${ns}.cp = data => {
+          if (typeof data === "string" || typeof data === "number" || data === null || data === void 0) {
+            return data;
+          } else if (Array.isArray(data)) {
+            return data.slice(0);
+          } else if (typeof data === "function") {
+            return data; // ?
+          } else {
+            return Object.fromEntries(Object.entries(data));
+          }
+        };
         ${ns}.report = function(meta, value) {
           meta.num = ${ns}._steps.push(meta) - 1;
-          meta.value = value;
+          meta.value = ${ns}.cp(value);
           meta.logs = ${ns}._logs;
           ${ns}._logs = [];
           return value;

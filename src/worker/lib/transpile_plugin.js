@@ -10,7 +10,7 @@ export default function(babel, { ns }) {
       return t.nullLiteral();
     } else if (data === void 0) {
       return t.identifier("undefined");
-    } else if (data instanceof Array) {
+    } else if (Array.isArray(data)) {
       return t.arrayExpression(data.map(json));
     } else if (data.$ast) {
       return data.$ast;
@@ -33,7 +33,12 @@ export default function(babel, { ns }) {
       loc: node.loc,
       type: node.type,
       scope: Object.fromEntries(
-        Object.keys(scope.bindings).map(id => [id, { $ast: t.identifier(id) }])
+        Object.keys(scope.bindings).map(id => [
+          id,
+          {
+            $ast: t.callExpression(t.identifier(ns + ".cp"), [t.identifier(id)])
+          }
+        ])
       )
     };
 
