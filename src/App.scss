@@ -1,0 +1,46 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+code,
+pre {
+  font-family: Menlo, Consolas, monospace;
+  font-size: 14px;
+}
+
+.App {
+  padding: 24px;
+}
+
+.Editor {
+  margin: 16px -24px;
+}
+
+.Code {
+  white-space: pre !important;
+  overflow: hidden;
+
+  outline: none;
+}
+
+.InfoPanelGroup {
+  display: flex;
+  flex-wrap: wrap;
+
+  margin: 0 -12px;
+
+  .InfoPanel {
+    box-sizing: border-box;
+    padding: 12px;
+    flex: 33.333% 1 1;
+  }
+}
+
+h2 {
+  margin: 0 0 24px 0;
+}

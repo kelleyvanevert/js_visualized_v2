@@ -1,0 +1,40 @@
+.StepSlider {
+  .Thumb {
+    display: flex;
+    margin: 0;
+    padding: 0;
+    height: 44px;
+    width: 44px;
+    box-sizing: border-box;
+
+    position: relative;
+
+    outline: none;
+    border: 2px solid transparent;
+
+    border-radius: 4px;
+    background-color: #fff;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0px 2px 6px #aaa;
+
+    &:focus {
+      border-color: #444;
+    }
+
+    .C {
+      height: 16px;
+      width: 6px;
+      background: #ccc;
+    }
+
+    font-size: 0.9rem;
+    font-family: Menlo, Consolas, monospace;
+    font-weight: bold;
+
+    &.state-error {
+      color: #c00;
+      border-color: #c00;
+    }
+  }
+}
