@@ -17,7 +17,7 @@ self.onmessage = ({ data: { code } }) => {
         console.log = (...args) => ${ns}._logs.push(args);
         ${ns}.cache = {};
         ${ns}.cp = data => {
-          if (typeof data === "string" || typeof data === "number" || data === null || data === void 0) {
+          if (typeof data === "boolean" || typeof data === "string" || typeof data === "number" || data === null || data === void 0) {
             return data;
           } else if (Array.isArray(data)) {
             return data.slice(0);

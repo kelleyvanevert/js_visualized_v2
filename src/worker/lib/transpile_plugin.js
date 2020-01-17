@@ -4,6 +4,8 @@ export default function(babel, { ns }) {
   function json(data) {
     if (typeof data === "string") {
       return t.stringLiteral(data);
+    } else if (typeof data === "boolean") {
+      return t.booleanLiteral(data);
     } else if (typeof data === "number") {
       return t.numericLiteral(data);
     } else if (data === null) {
