@@ -1,0 +1,23 @@
+{
+  "name": "simplistic_redo_with_workers",
+  "version": "1.0.0",
+  "license": "MIT",
+  "browserslist": [
+    "last 2 Chrome versions"
+  ],
+  "scripts": {
+    "build:client": "parcel build src/index.html",
+    "start": "parcel src/index.html",
+    "clean": "rm -rf .cache dist"
+  },
+  "devDependencies": {
+    "parcel-bundler": "^1.12.4",
+    "typescript": "^3.7.5"
+  },
+  "dependencies": {
+    "react": "^16.8.0-0 || ^17.0.0-0",
+    "react-dom": "^16.8.0-0 || ^17.0.0-0",
+    "react-range": "^1.4.9",
+    "react-simple-code-editor": "^0.11.0"
+  }
+}
