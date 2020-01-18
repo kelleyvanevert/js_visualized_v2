@@ -6,6 +6,12 @@ body {
   font-family: "Work Sans", sans-serif;
   font-size: 18px;
   line-height: 1.4;
+  color: #333;
+}
+
+a {
+  color: black;
+  font-weight: bold;
 }
 
 code,
@@ -22,10 +28,12 @@ h5,
 h6 {
   font-family: "Work Sans", sans-serif;
   font-weight: bold;
+  color: black;
 }
 
 .App {
   padding: 24px;
+  margin-bottom: 160px;
 }
 
 .Editor {

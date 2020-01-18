@@ -5,13 +5,8 @@ import React, {
   useEffect,
   useCallback
 } from "react";
-import { useWindowSize } from "react-use";
 
 import { highlight, languages } from "prismjs/components/prism-core";
-import "prismjs/components/prism-clike";
-import "prismjs/components/prism-javascript";
-
-import "./prism-ghcolors.css";
 
 import theme from "./theme";
 
@@ -68,8 +63,6 @@ export default function Highlight({ code, step }) {
             code + (code.split("\n").slice(-1)[0] === "" ? " " : ""),
             languages.js
           )
-          // .replace(/ /g, "&nbsp;")
-          // .replace(/\n/g, "<br />")
         }}
       />
       {ranges.length > 0 &&
@@ -93,45 +86,6 @@ export default function Highlight({ code, step }) {
         })}
     </div>
   );
-}
-
-function escapeHtml(unsafe) {
-  return unsafe
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-// TODO actually encode html characters
-function highlight_bold(code, loc) {
-  if (!loc) {
-    return code;
-  }
-
-  const lines = code.split("\n");
-
-  const before = [
-    ...lines.slice(0, loc.start.line - 1),
-    lines[loc.start.line - 1].slice(0, loc.start.column)
-  ].join("\n");
-
-  const highlighted =
-    loc.start.line === loc.end.line
-      ? lines[loc.start.line - 1].slice(loc.start.column, loc.end.column)
-      : [
-          lines[loc.start.line - 1].slice(loc.start.column),
-          ...lines.slice(loc.start.line, loc.end.line - 1),
-          lines[loc.end.line - 1].slice(0, loc.end.column)
-        ].join("\n");
-
-  const after = [
-    lines[loc.end.line - 1].slice(loc.end.column),
-    ...lines.slice(loc.end.line)
-  ].join("\n");
-
-  return `${before}<span style="font-weight: bold;">${highlighted}</span>${after}`;
 }
 
 function loc_to_ranges(code, loc) {

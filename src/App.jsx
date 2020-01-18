@@ -1,14 +1,31 @@
 import "styled-components/macro";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import Editor from "react-simple-code-editor";
+import { ObjectInspector, chromeLight } from "react-inspector";
+
+import { IoIosArrowDroprightCircle } from "react-icons/io";
 
 import StepSlider from "./StepSlider";
 import Highlight from "./Highlight";
 import Menu from "./Menu";
 
+import Explainer from "./content/Explainer";
+
 import theme from "./theme";
 
 import "./App.scss";
+
+const inspectorTheme = {
+  ...chromeLight,
+  BASE_FONT_FAMILY: "Menlo, Consolas, monospace",
+  BASE_FONT_SIZE: "14px",
+  BASE_LINE_HEIGHT: 1.4,
+  TREENODE_FONT_FAMILY: "Menlo, Consolas, monospace",
+  TREENODE_FONT_SIZE: "14px",
+  TREENODE_LINE_HEIGHT: 1.4
+};
+
+console.log(chromeLight);
 
 const EX = `const grades = [4, 8.1, 2.5, 9, 7.8];
 
@@ -45,6 +62,16 @@ export default function App() {
   const cacheKey = _cacheKey(code, { detail });
   const { steps, error, loading } = cache[cacheKey] || { loading: true };
 
+  const delayed = useDelayed(
+    useMemo(() => {
+      return {
+        loading,
+        error
+      };
+    }, [loading, error]),
+    100
+  );
+
   const _lastSteps = useMostRecent(steps, []);
 
   const [_at, set_at] = useState(0);
@@ -66,7 +93,7 @@ export default function App() {
             margin-right: 16px;
           `}
         >
-          <div>
+          <p css="margin-top: 0;">
             <label>
               <input
                 type="checkbox"
@@ -78,7 +105,12 @@ export default function App() {
               />
               Expression level detail
             </label>
-          </div>
+          </p>
+          <p css="margin-bottom: 0;">
+            <small>
+              <em>(More stuff to be added here later.)</em>
+            </small>
+          </p>
         </Menu>
         <StepSlider
           max={_lastSteps.length - 1}
@@ -130,7 +162,7 @@ export default function App() {
               </p>
             )}
             {step.time === "after" && step.category === "expression" && (
-              <pre>{JSON.stringify(step.value, null, 2)}</pre>
+              <ObjectInspector theme={inspectorTheme} data={step.value} />
             )}
           </div>
           <div className="InfoPanel">
@@ -163,12 +195,11 @@ export default function App() {
                             paddingBottom: i === bindings.length - 1 ? 0 : 10
                           }}
                         >
-                          <pre style={{ margin: "0 8px 0 0" }}>
-                            {variable} =
-                          </pre>
-                          <pre style={{ margin: "0 8px 0 0" }}>
-                            {JSON.stringify(value, null, 2)}
-                          </pre>
+                          <ObjectInspector
+                            theme={inspectorTheme}
+                            name={variable}
+                            data={value}
+                          />
                         </div>
                       );
                     })}
@@ -199,14 +230,56 @@ export default function App() {
                   >
                     {items.map((item, i) => {
                       return (
-                        <pre key={i} style={{ margin: "0 16px 0 0" }}>
-                          {JSON.stringify(item, null, 2)}
-                        </pre>
+                        <div css="margin-right: 16px;">
+                          <ObjectInspector theme={inspectorTheme} data={item} />
+                        </div>
                       );
                     })}
                   </div>
                 );
               })}
+          </div>
+        </div>
+      )}
+      {at < 0.1 && !delayed.error && (
+        <div className="InfoPanelGroup">
+          <div className="InfoPanel">
+            <h2>What's this?</h2>
+            <p>
+              You're looking at a little tool that helps to{" "}
+              <strong>
+                visualize the step-wise execution of JavaScript code.
+              </strong>{" "}
+              This can help people new to programming understand the mechanical
+              and structured way execution works in a visual way.
+            </p>
+            <p css="font-size: 1.1em; padding-left: 30px; position: relative;">
+              <IoIosArrowDroprightCircle
+                css={`
+                  vertical-align: text-bottom;
+                  margin-bottom: 1px;
+                  position: absolute;
+                  left: 0;
+                  top: 4px;
+                `}
+              />
+              Write some JavaScript code in the editor above, then use the
+              slider to step through the execution flow.
+            </p>
+            <p>
+              Built as a teaching purposes experiment at{" "}
+              <a href="https://codaisseur.com/">Codaisseur</a>.
+            </p>
+          </div>
+          <div className="InfoPanel">
+            <Explainer />
+          </div>
+        </div>
+      )}
+      {delayed.error && (
+        <div className="InfoPanelGroup">
+          <div className="InfoPanel">
+            <h2 css="color: #c00;">Uh oh!</h2>
           </div>
         </div>
       )}
@@ -273,4 +346,17 @@ function useReplacableWorker(onMessage) {
   };
 
   return ref.current.worker;
+}
+
+function useDelayed(stableMostRecent, ms) {
+  const [last, set_last] = useState(stableMostRecent);
+
+  useEffect(() => {
+    let id = setTimeout(() => {
+      set_last(stableMostRecent);
+    }, ms);
+    return () => clearTimeout(id);
+  }, [stableMostRecent]);
+
+  return last;
 }

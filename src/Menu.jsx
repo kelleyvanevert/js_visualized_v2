@@ -102,8 +102,7 @@ export default function Menu({ children, ...props }) {
               position: absolute;
               top: 4px;
               left: 0;
-              min-width: 300px;
-              min-height: 240px;
+              width: 240px;
               z-index: 50;
 
               padding: 16px;

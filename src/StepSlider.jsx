@@ -2,6 +2,8 @@ import "styled-components/macro";
 import React, { useRef, useMemo, useEffect, useState } from "react";
 import { Range, getTrackBackground } from "react-range";
 
+import { IoIosArrowDroprightCircle, IoIosCloseCircle } from "react-icons/io";
+
 import Spinner from "./Spinner";
 import theme from "./theme";
 
@@ -27,9 +29,9 @@ export default function StepSlider({
         content: loading ? (
           <Spinner size={32} color={theme.blue} />
         ) : error ? (
-          <span css="font-size: 24px;">✗</span>
+          <IoIosCloseCircle size="24px" />
         ) : (
-          <>{at || <span css="font-size: 24px;">✔</span>}</>
+          <>{at || <IoIosArrowDroprightCircle size="24px" />}</>
         )
       };
     }, [loading, error, value]),
@@ -120,10 +122,10 @@ export default function StepSlider({
                     })
                   }}
                 />
-                {value < 0.5 && (
+                {value < 0.1 && (
                   <div
                     css={`
-                      z-index: 30;
+                      z-index: 25;
                       position: absolute;
                       top: 0;
                       bottom: 0;
@@ -192,10 +194,14 @@ export default function StepSlider({
                 font-family: Menlo, Consolas, monospace;
                 font-weight: bold;
 
-                ${thumb.error
-                  ? `color: #c00;
-                     border-color: #c00;`
-                  : ``}
+                ${thumb.error &&
+                  `
+                    &,
+                    &:focus {
+                      color: #c00;
+                      border-color: #c00;
+                    }
+                  `}
               `}
             >
               {thumb.content}
