@@ -29,14 +29,12 @@ console.log(chromeLight);
 
 const EX = `const grades = [4, 8.1, 2.5, 9, 7.8];
 
-const avg = grades.reduce((total, grade) => {
+function sum(total, grade) {
   console.log(total, grade);
   return total + grade;
-}, 0) / grades.length;`;
+}
 
-const EX_ = `(function(num) {
-  return num + 8;
-})(1)`;
+const avg = grades.reduce(sum, 0) / grades.length;`;
 
 function _cacheKey(code, config = {}) {
   return (config.detail ? "Y" : "N") + ";" + code;

@@ -196,7 +196,23 @@ export default function(babel, { ns = "__V__", detail = true } = {}) {
       const report_after = path.getSibling(path.key + 1);
       report_after.skip();
 
-      if (t.isReturnStatement(path)) {
+      if (t.isFunctionDeclaration(path)) {
+        path.get("body").unshiftContainer(
+          "body",
+          // This acts as a report of the function's invocation entry
+          t.expressionStatement(
+            t.callExpression(t.identifier(ns + ".report"), [
+              t.identifier("undefined"),
+              meta(
+                "function_entry",
+                path.node,
+                path.scope, // the function's own scope
+                "enter"
+              )
+            ])
+          )
+        );
+      } else if (t.isReturnStatement(path)) {
         path.scope._hasReturn = true;
         path.replaceWith(
           t.expressionStatement(
