@@ -21,20 +21,20 @@ self.onmessage = ({ data: { code, config = {} } }) => {
           _steps: [{}],
           _logs: []
         };
-        ${ns}.__console_log = console.log;
-        console.log = (...args) => ${ns}._logs.push(args);
-        ${ns}.cache = {};
         ${ns}.cp = data => {
           if (typeof data === "boolean" || typeof data === "string" || typeof data === "number" || data === null || data === void 0) {
             return data;
           } else if (Array.isArray(data)) {
-            return data.slice(0);
+            return data.slice(0).map(${ns}.cp);
           } else if (typeof data === "function") {
             return data; // ?
           } else {
-            return Object.fromEntries(Object.entries(data));
+            return Object.fromEntries(Object.entries(data).map(${ns}.cp));
           }
         };
+        ${ns}.__console_log = console.log;
+        console.log = (...args) => ${ns}._logs.push(${ns}.cp(args));
+        ${ns}.cache = {};
         ${ns}.report = function(value, meta) {
           meta.num = ${ns}._steps.push(meta) - 1;
           meta.value = ${ns}.cp(value);
