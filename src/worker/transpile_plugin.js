@@ -1,4 +1,4 @@
-export default function(babel, { ns, detail }) {
+export default function(babel, { ns = "__V__", detail = true } = {}) {
   const { types: t } = babel;
 
   function json(data) {
@@ -78,11 +78,17 @@ export default function(babel, { ns, detail }) {
     Statement(path) {
       if (t.isBlockStatement(path.node)) return;
 
+      // No idea why, but for some
+      //  reason the scope of a Function node
+      //  is not the surrounding scope of it as an expression,
+      //  but rather it's own scope. Not what we're looking for!
+      const scope = t.isFunction(path) ? path.parentPath.scope : path.scope;
+
       path.insertBefore(
         t.expressionStatement(
           t.callExpression(t.identifier(ns + ".report"), [
             t.identifier("undefined"),
-            meta("statement", path.node, path.scope, "before")
+            meta("statement", path.node, scope, "before")
           ])
         )
       );
@@ -94,7 +100,7 @@ export default function(babel, { ns, detail }) {
         t.expressionStatement(
           t.callExpression(t.identifier(ns + ".report"), [
             t.identifier("undefined"),
-            meta("statement", path.node, path.scope, "after")
+            meta("statement", path.node, scope, "after")
           ])
         )
       );
