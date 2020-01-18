@@ -1,7 +1,7 @@
 
 # Visualizing JavaScript execution through a meta-syntactic transform 🚀
 
-![](https://p98.f4.n0.cdn.getcloudapp.com/items/DOuvP2bG/Screenshot+2020-01-18+at+00.52.01.png?v=fc7b61154a9b07c3b70f80509a2095c4)
+![](https://p98.f4.n0.cdn.getcloudapp.com/items/BluN2WPm/Screenshot+2020-01-18+at+22.51.57.png?v=f89cff10bb8635f19b3c14b520b8c213)
 
 For info:
 
