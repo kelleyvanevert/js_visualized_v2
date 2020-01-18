@@ -32,7 +32,7 @@ export default function StepSlider({
         )
       };
     }, [loading, error, value]),
-    100
+    loading || error ? 100 : 0
   );
 
   return (
