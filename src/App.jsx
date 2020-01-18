@@ -9,11 +9,14 @@ import theme from "./theme";
 
 import "./App.scss";
 
-const EX = `console.log("before");
-for (let i = 0; i < 5; i = i + 1) {
-  console.log("iteration", i);  
-}
-console.log("after");`;
+const EX = `const grades = [4, 8.1, 2.5, 9, 7.8];
+console.log("grades", grades);
+const total = grades.reduce((total, grade) => {
+  return total + grade;
+}, 0);
+console.log("total", total);
+const avg = total / grades.length;
+console.log("avg", avg);`;
 
 function _cacheKey(code, config = {}) {
   return (config.detail ? "Y" : "N") + ";" + code;
