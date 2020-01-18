@@ -4,19 +4,18 @@ import Editor from "react-simple-code-editor";
 
 import StepSlider from "./StepSlider";
 import Highlight from "./Highlight";
+import Menu from "./Menu";
 
 import theme from "./theme";
 
 import "./App.scss";
 
 const EX = `const grades = [4, 8.1, 2.5, 9, 7.8];
-console.log("grades", grades);
-const total = grades.reduce((total, grade) => {
+
+const avg = grades.reduce((total, grade) => {
+  console.log(total, grade);
   return total + grade;
-}, 0);
-console.log("total", total);
-const avg = total / grades.length;
-console.log("avg", avg);`;
+}, 0) / grades.length;`;
 
 function _cacheKey(code, config = {}) {
   return (config.detail ? "Y" : "N") + ";" + code;
@@ -62,14 +61,25 @@ export default function App() {
           align-items: center;
         `}
       >
-        <input
-          type="checkbox"
-          checked={detail}
-          onChange={e => set_detail(e.target.checked)}
+        <Menu
           css={`
             margin-right: 16px;
           `}
-        />
+        >
+          <div>
+            <label>
+              <input
+                type="checkbox"
+                checked={detail}
+                onChange={e => set_detail(e.target.checked)}
+                css={`
+                  margin-right: 16px;
+                `}
+              />
+              Expression level detail
+            </label>
+          </div>
+        </Menu>
         <StepSlider
           max={_lastSteps.length - 1}
           value={_at}
@@ -93,7 +103,7 @@ export default function App() {
           textareaClassName="Code"
         />
       </div>
-      {step && (
+      {step && at > 0 && (
         <div className="InfoPanelGroup">
           <div className="InfoPanel">
             <h2>Step info</h2>
@@ -126,50 +136,46 @@ export default function App() {
           <div className="InfoPanel">
             <h2>Variables in scope</h2>
             {step.scopes &&
-              step.scopes
-                .slice()
-                .reverse()
-                .map((scope, j) => {
-                  const bindings = Object.entries(scope);
-                  return (
-                    <div
-                      key={j}
-                      style={{
-                        borderTop: "2px solid black",
-                        paddingTop: 10,
-                        marginLeft: 10 * j,
-                        paddingLeft: 10,
-                        borderLeft: "2px solid black",
-                        paddingBottom: 10
-                      }}
-                    >
-                      {bindings.length === 0 && (
-                        <p css="margin: 0;">
-                          <em>(no variables in this scope)</em>
-                        </p>
-                      )}
-                      {bindings.map(([variable, [value]], i) => {
-                        return (
-                          <div
-                            key={i}
-                            style={{
-                              display: "flex",
-                              flexWrap: "wrap",
-                              paddingBottom: i === bindings.length - 1 ? 0 : 10
-                            }}
-                          >
-                            <pre style={{ margin: "0 8px 0 0" }}>
-                              {variable} =
-                            </pre>
-                            <pre style={{ margin: "0 8px 0 0" }}>
-                              {JSON.stringify(value, null, 2)}
-                            </pre>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
+              step.scopes.slice().reduce((childrenScopes, scope, j) => {
+                const bindings = Object.entries(scope);
+                return (
+                  <div
+                    css={`
+                      margin-top: 10px;
+                      border: 2px solid ${j === 0 ? "black" : "#ccc"};
+                      ${j === 0 && "box-shadow: 0 2px 6px rgba(0, 0, 0, .2);"}
+                      padding: 10px;
+                      border-radius: 4px;
+                    `}
+                  >
+                    {bindings.length === 0 && (
+                      <p css="margin: 0;">
+                        <em>(no variables in this scope)</em>
+                      </p>
+                    )}
+                    {bindings.map(([variable, [value]], i) => {
+                      return (
+                        <div
+                          key={i}
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            paddingBottom: i === bindings.length - 1 ? 0 : 10
+                          }}
+                        >
+                          <pre style={{ margin: "0 8px 0 0" }}>
+                            {variable} =
+                          </pre>
+                          <pre style={{ margin: "0 8px 0 0" }}>
+                            {JSON.stringify(value, null, 2)}
+                          </pre>
+                        </div>
+                      );
+                    })}
+                    {childrenScopes}
+                  </div>
+                );
+              }, <div />)}
           </div>
           <div className="InfoPanel">
             <h2>Console logs</h2>
@@ -186,7 +192,7 @@ export default function App() {
                       flexWrap: "wrap",
                       paddingBottom: 10,
                       ...(i !== 0 && {
-                        borderTop: "1px solid #ccc",
+                        borderTop: "2px solid #ccc",
                         paddingTop: 10
                       })
                     }}
