@@ -1,4 +1,6 @@
-import transpile from "./lib/transpile";
+import * as babel from "@babel/core";
+
+import transpilerPlugin from "./transpile_plugin";
 
 const id = Math.floor(Math.random() * 1000);
 
@@ -8,12 +10,12 @@ setInterval(() => {
   self.postMessage({ alive: id });
 }, 100);
 
-self.onmessage = ({ data: { code } }) => {
+self.onmessage = ({ data: { code, config = {} } }) => {
   console.log("compiling...");
+  const ns = (config.ns = config.ns || "__V__");
   try {
-    const ns = "__V__";
-    const transpiled = transpile(code, { ns });
-    const steps = eval(`
+    const transpiled = transpile(code, config);
+    let steps = eval(`
       ((() => {
         const ${ns} = {
           _steps: [{}],
@@ -46,12 +48,25 @@ self.onmessage = ({ data: { code } }) => {
       })())
     `);
 
+    steps = steps.filter(step => {
+      if (!config.detail) {
+        if (
+          step.category === "expression" ||
+          (step.category === "statement" && step.time === "before")
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+
     // To avoid some kind of permission problem,
     //  manually serialize then deserialize once
     console.log("  OK");
     self.postMessage({
       code,
       transpiled,
+      config,
       steps: JSON.parse(
         JSON.stringify(steps, (key, val) => {
           return val === void 0 ? `${ns}.UNDEF` : val;
@@ -63,6 +78,14 @@ self.onmessage = ({ data: { code } }) => {
     });
   } catch (error) {
     console.log("  ERR");
-    self.postMessage({ code, error });
+    self.postMessage({ code, config, error });
   }
 };
+
+function transpile(code, config) {
+  const transpiled = babel.transformSync(code, {
+    plugins: [[transpilerPlugin, config]]
+  });
+
+  return transpiled.code;
+}

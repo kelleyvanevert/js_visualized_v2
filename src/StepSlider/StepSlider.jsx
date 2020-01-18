@@ -1,3 +1,4 @@
+import "styled-components/macro";
 import React, { useRef, useMemo, useEffect, useState } from "react";
 import cx from "classnames";
 import { Range, getTrackBackground } from "react-range";
@@ -20,15 +21,16 @@ export default function StepSlider({
 
   const thumb = useDelayed(
     useMemo(() => {
+      const no = Math.round(value);
       return {
         loading,
         error,
         content: loading ? (
           <Spinner size={32} color="#007cff" />
         ) : error ? (
-          <span>ERR</span>
+          <span css="font-size: 24px;">✗</span>
         ) : (
-          <>{Math.round(value)}</>
+          <>{no || <span css="font-size: 24px;">✔</span>}</>
         )
       };
     }, [loading, error, value]),
@@ -38,12 +40,13 @@ export default function StepSlider({
   return (
     <div
       className="StepSlider"
-      style={{
-        display: "flex",
-        justifyContent: "center",
-        flexWrap: "wrap",
-        padding: "0 22px"
-      }}
+      css={`
+        flex-grow: 1;
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        padding: 0 22px;
+      `}
     >
       <Range
         values={[value]}
@@ -121,9 +124,9 @@ export default function StepSlider({
               style={{ ...props.style, zIndex: 30 }}
               onKeyDown={e => {
                 if (e.key === "ArrowLeft") {
-                  onValueChange(value - 1);
+                  onValueChange(Math.round(value - 1));
                 } else if (e.key === "ArrowRight") {
-                  onValueChange(value + 1);
+                  onValueChange(Math.round(value + 1));
                 }
               }}
             >

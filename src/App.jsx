@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import "styled-components/macro";
+import React, { useState, useEffect, useRef } from "react";
 import Editor from "react-simple-code-editor";
 
 import StepSlider from "./StepSlider";
@@ -8,35 +9,39 @@ import theme from "./theme";
 
 import "./App.scss";
 
-const EX = `const a = 16;
-const b = 2 + 4;
-console.log("a", a, "b", b);
-const arr = [a, a + b, b].filter((n, i) => {
-  console.log(n, i);
-  return n > 5;
-});
-arr`;
+const EX = `console.log("before");
+for (let i = 0; i < 5; i = i + 1) {
+  console.log("iteration", i);  
+}
+console.log("after");`;
+
+function _cacheKey(code, config = {}) {
+  return (config.detail ? "Y" : "N") + ";" + code;
+}
 
 export default function App() {
-  const [code, set_code] = useState(EX);
   const [cache, set_cache] = useState({});
+
+  const [code, set_code] = useState(EX);
+  const [detail, set_detail] = useState(true);
 
   const worker = useReplacableWorker(data => {
     set_cache(cache => {
       return {
         ...cache,
-        [data.code]: data
+        [_cacheKey(data.code, data.config)]: data
       };
     });
   });
 
   useEffect(() => {
-    if (worker && !cache[code]) {
-      worker.postMessage({ code });
+    if (worker && !cache[_cacheKey(code, { detail })]) {
+      worker.postMessage({ code, config: { detail } });
     }
-  }, [code, cache, worker]);
+  }, [code, detail, cache, worker]);
 
-  const { steps, error, loading } = cache[code] || { loading: true };
+  const cacheKey = _cacheKey(code, { detail });
+  const { steps, error, loading } = cache[cacheKey] || { loading: true };
 
   const _lastSteps = useMostRecent(steps, []);
 
@@ -48,13 +53,28 @@ export default function App() {
 
   return (
     <div className="App">
-      <StepSlider
-        max={_lastSteps.length - 1}
-        value={_at}
-        onValueChange={set_at}
-        loading={loading}
-        error={error}
-      />
+      <div
+        css={`
+          display: flex;
+          align-items: center;
+        `}
+      >
+        <input
+          type="checkbox"
+          checked={detail}
+          onChange={e => set_detail(e.target.checked)}
+          css={`
+            margin-right: 16px;
+          `}
+        />
+        <StepSlider
+          max={_lastSteps.length - 1}
+          value={_at}
+          onValueChange={set_at}
+          loading={loading}
+          error={error}
+        />
+      </div>
       <div className="Editor">
         <Editor
           value={code}
@@ -102,28 +122,51 @@ export default function App() {
           </div>
           <div className="InfoPanel">
             <h2>Variables in scope</h2>
-            {step.scope &&
-              Object.entries(step.scope).map(([variable, [value]], i) => {
-                return (
-                  <div
-                    key={i}
-                    style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      paddingBottom: 10,
-                      ...(i !== 0 && {
-                        borderTop: "1px solid #ccc",
-                        paddingTop: 10
-                      })
-                    }}
-                  >
-                    <pre style={{ margin: "0 8px 0 0" }}>{variable} =</pre>
-                    <pre style={{ margin: "0 8px 0 0" }}>
-                      {JSON.stringify(value, null, 2)}
-                    </pre>
-                  </div>
-                );
-              })}
+            {step.scopes &&
+              step.scopes
+                .slice()
+                .reverse()
+                .map((scope, j) => {
+                  const bindings = Object.entries(scope);
+                  return (
+                    <div
+                      key={j}
+                      style={{
+                        borderTop: "2px solid black",
+                        paddingTop: 10,
+                        marginLeft: 10 * j,
+                        paddingLeft: 10,
+                        borderLeft: "2px solid black",
+                        paddingBottom: 10
+                      }}
+                    >
+                      {bindings.length === 0 && (
+                        <p css="margin: 0;">
+                          <em>(no variables in this scope)</em>
+                        </p>
+                      )}
+                      {bindings.map(([variable, [value]], i) => {
+                        return (
+                          <div
+                            key={i}
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              paddingBottom: i === bindings.length - 1 ? 0 : 10
+                            }}
+                          >
+                            <pre style={{ margin: "0 8px 0 0" }}>
+                              {variable} =
+                            </pre>
+                            <pre style={{ margin: "0 8px 0 0" }}>
+                              {JSON.stringify(value, null, 2)}
+                            </pre>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
           </div>
           <div className="InfoPanel">
             <h2>Console logs</h2>

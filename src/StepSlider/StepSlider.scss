@@ -16,10 +16,11 @@
     background-color: #fff;
     justify-content: center;
     align-items: center;
-    box-shadow: 0px 2px 6px #aaa;
+    box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.3);
 
     &:focus {
-      border-color: #444;
+      color: #007cff;
+      border-color: #007cff;
     }
 
     .C {

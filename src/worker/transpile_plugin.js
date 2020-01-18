@@ -1,4 +1,4 @@
-export default function(babel, { ns }) {
+export default function(babel, { ns, detail }) {
   const { types: t } = babel;
 
   function json(data) {
@@ -28,22 +28,29 @@ export default function(babel, { ns }) {
   let _cache_id = -1;
 
   function meta(category, node, scope, time) {
-    // return json(node.type);
+    const scopes = [];
+    while (scope) {
+      scopes.push(
+        Object.fromEntries(
+          Object.keys(scope.bindings).map(id => [
+            id,
+            {
+              $ast: t.arrayExpression([
+                t.callExpression(t.identifier(ns + ".cp"), [t.identifier(id)])
+              ])
+            }
+          ])
+        )
+      );
+      scope = scope.parent;
+    }
+
     const metadata = {
       category,
       time,
       loc: node.loc,
       type: node.type,
-      scope: Object.fromEntries(
-        Object.keys(scope.bindings).map(id => [
-          id,
-          {
-            $ast: t.arrayExpression([
-              t.callExpression(t.identifier(ns + ".cp"), [t.identifier(id)])
-            ])
-          }
-        ])
-      )
+      scopes
     };
 
     // if (scope._hasReturn) {
