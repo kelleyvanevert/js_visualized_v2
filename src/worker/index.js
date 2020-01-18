@@ -43,7 +43,18 @@ self.onmessage = ({ data: { code } }) => {
     // To avoid some kind of permission problem,
     //  manually serialize then deserialize once
     console.log("  OK");
-    self.postMessage(JSON.parse(JSON.stringify({ code, transpiled, steps })));
+    self.postMessage({
+      code,
+      transpiled,
+      steps: JSON.parse(
+        JSON.stringify(steps, (key, val) => {
+          return val === void 0 ? `${ns}.UNDEF` : val;
+        }),
+        (key, val) => {
+          return val === `${ns}.UNDEF` ? void 0 : val;
+        }
+      )
+    });
   } catch (error) {
     console.log("  ERR");
     self.postMessage({ code, error });

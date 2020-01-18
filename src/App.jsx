@@ -73,7 +73,7 @@ export default function App() {
           padding={24}
           style={{
             fontFamily: "Menlo, Consolas, monospace",
-            fontSize: 20,
+            fontSize: 18,
             lineHeight: 1.4
           }}
           preClassName="language-js"
@@ -107,13 +107,13 @@ export default function App() {
               </p>
             )}
             {step.time === "after" && step.category === "expression" && (
-              <pre>{JSON.stringify(step.value)}</pre>
+              <pre>{JSON.stringify(step.value, null, 2)}</pre>
             )}
           </div>
           <div className="InfoPanel">
             <h2>Variables in scope</h2>
             {step.scope &&
-              Object.entries(step.scope).map(([variable, value], i) => {
+              Object.entries(step.scope).map(([variable, [value]], i) => {
                 return (
                   <div
                     key={i}

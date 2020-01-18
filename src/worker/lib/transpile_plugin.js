@@ -38,7 +38,9 @@ export default function(babel, { ns }) {
         Object.keys(scope.bindings).map(id => [
           id,
           {
-            $ast: t.callExpression(t.identifier(ns + ".cp"), [t.identifier(id)])
+            $ast: t.arrayExpression([
+              t.callExpression(t.identifier(ns + ".cp"), [t.identifier(id)])
+            ])
           }
         ])
       )
