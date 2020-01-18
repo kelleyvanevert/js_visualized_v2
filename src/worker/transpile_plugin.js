@@ -69,6 +69,12 @@ export default function(babel, { ns = "__V__", detail = true } = {}) {
   }
 
   function visit_FunctionExpression(path) {
+    if (!path.node.loc) {
+      // self-inserted, don't traverse
+      path.skip();
+      return;
+    }
+
     const block = t.isBlockStatement(path.node.body);
 
     path.replaceWith(
@@ -79,8 +85,36 @@ export default function(babel, { ns = "__V__", detail = true } = {}) {
               null,
               path.node.params,
               block
-                ? path.node.body
-                : t.blockStatement([t.returnStatement(u(path.node.body))])
+                ? t.blockStatement([
+                    // This acts as a report of the function's invocation entry
+                    t.expressionStatement(
+                      t.callExpression(t.identifier(ns + ".report"), [
+                        t.identifier("undefined"),
+                        meta(
+                          "function_entry",
+                          path.node,
+                          path.scope, // the function's own scope
+                          "enter"
+                        )
+                      ])
+                    ),
+                    ...path.node.body.body
+                  ])
+                : t.blockStatement([
+                    // This acts as a report of the function's invocation entry
+                    t.expressionStatement(
+                      t.callExpression(t.identifier(ns + ".report"), [
+                        t.identifier("undefined"),
+                        meta(
+                          "function_entry",
+                          path.node,
+                          path.scope, // the function's own scope
+                          "enter"
+                        )
+                      ])
+                    ),
+                    t.returnStatement(u(path.node.body))
+                  ])
             ),
             t.identifier("bind")
           ),
@@ -106,10 +140,11 @@ export default function(babel, { ns = "__V__", detail = true } = {}) {
       .get("object")
       .get("body");
     if (block) {
+      console.log((body.node.body[0].__skip = true));
       body.traverse(visitor); // recurse
     } else {
       body
-        .get("body")[0]
+        .get("body")[1]
         .get("argument")
         .traverse(visitor); // recurse
     }
@@ -123,6 +158,12 @@ export default function(babel, { ns = "__V__", detail = true } = {}) {
       path.node.kind = "var";
     },
     Statement(path) {
+      if (!path.node.loc) {
+        // self-inserted, don't traverse
+        path.skip();
+        return;
+      }
+
       if (t.isBlockStatement(path.node)) return;
 
       // No idea why, but for some
@@ -181,6 +222,12 @@ export default function(babel, { ns = "__V__", detail = true } = {}) {
     FunctionExpression: visit_FunctionExpression,
     ArrowFunctionExpression: visit_FunctionExpression,
     Expression(path) {
+      if (!path.node.loc) {
+        // self-inserted, don't traverse
+        path.skip();
+        return;
+      }
+
       if (t.isCallExpression(path)) {
         const contextual = t.isMemberExpression(path.get("callee"));
 

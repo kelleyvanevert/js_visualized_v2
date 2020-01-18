@@ -34,6 +34,10 @@ const avg = grades.reduce((total, grade) => {
   return total + grade;
 }, 0) / grades.length;`;
 
+const EX_ = `(function(num) {
+  return num + 8;
+})(1)`;
+
 function _cacheKey(code, config = {}) {
   return (config.detail ? "Y" : "N") + ";" + code;
 }
@@ -141,23 +145,38 @@ export default function App() {
             <h2>Step info</h2>
             {step.time && step.category && step.type && (
               <p>
-                <em>
-                  <strong style={{ color: theme[step.time].fg }}>
-                    {step.time === "before"
-                      ? `about to ${
-                          step.category === "statement" ? "execute" : "evaluate"
-                        }`
-                      : step.type === "statement"
-                      ? "executed"
-                      : "evaluated"}
-                  </strong>{" "}
-                  <u>{step.category}</u> of type
-                </em>{" "}
-                <strong>{step.type}</strong>{" "}
-                {step.time === "after" && step.category === "expression" ? (
-                  <em>to:</em>
+                {step.category === "function_entry" ? (
+                  <em>
+                    <strong style={{ color: theme[step.time].fg }}>
+                      just entered
+                    </strong>{" "}
+                    <u>function</u>
+                  </em>
                 ) : (
-                  ""
+                  <>
+                    <em>
+                      <strong style={{ color: theme[step.time].fg }}>
+                        {step.time === "before"
+                          ? `about to ${
+                              step.category === "expression"
+                                ? "evaluate"
+                                : "execute"
+                            }`
+                          : step.type === "statement"
+                          ? "executed"
+                          : "evaluated"}
+                      </strong>{" "}
+                      <u>{step.category}</u>{" "}
+                    </em>
+                    <span>
+                      of type <strong>{step.type}</strong>
+                    </span>{" "}
+                    {step.time === "after" && step.category === "expression" ? (
+                      <em>to:</em>
+                    ) : (
+                      ""
+                    )}
+                  </>
                 )}
               </p>
             )}
