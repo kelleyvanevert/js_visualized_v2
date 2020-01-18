@@ -11,18 +11,21 @@
     "clean": "rm -rf .cache dist"
   },
   "devDependencies": {
+    "@babel/preset-react": "^7.8.3",
     "parcel-bundler": "^1.12.4",
     "sass": "^1.24.5",
     "typescript": "^3.7.5"
   },
   "dependencies": {
-    "@babel/core": "^7.8.3",
+    "@babel/core": "^7.0.0-0",
+    "babel-plugin-macros": "^2.8.0",
     "classnames": "^2.2.6",
     "prismjs": "^1.19.0",
     "react": "^16.8.0",
     "react-dom": "^16.8.0",
     "react-range": "^1.4.9",
     "react-simple-code-editor": "^0.11.0",
-    "react-use": "^13.20.0"
+    "react-use": "^13.20.0",
+    "styled-components": "^5.0.0"
   }
 }

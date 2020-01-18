@@ -1,0 +1,4 @@
+{
+  "plugins": ["babel-plugin-macros"],
+  "presets": ["@babel/preset-react", "@babel/preset-env"]
+}

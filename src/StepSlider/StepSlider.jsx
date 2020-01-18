@@ -1,6 +1,8 @@
-import React, { useRef } from "react";
+import React, { useRef, useMemo, useEffect, useState } from "react";
 import cx from "classnames";
 import { Range, getTrackBackground } from "react-range";
+
+import Spinner from "../Spinner";
 
 import "./StepSlider.scss";
 
@@ -15,6 +17,23 @@ export default function StepSlider({
   value = Math.max(0, Math.min(value, max));
 
   const btn = useRef(null);
+
+  const thumb = useDelayed(
+    useMemo(() => {
+      return {
+        loading,
+        error,
+        content: loading ? (
+          <Spinner size={32} color="#007cff" />
+        ) : error ? (
+          <span>ERR</span>
+        ) : (
+          <>{Math.round(value)}</>
+        )
+      };
+    }, [loading, error, value]),
+    100
+  );
 
   return (
     <div
@@ -96,8 +115,8 @@ export default function StepSlider({
               className={cx(
                 "Thumb",
                 isDragged && "state-dragged",
-                error && "state-error",
-                loading && "state-loading"
+                thumb.error && "state-error",
+                thumb.loading && "state-loading"
               )}
               style={{ ...props.style, zIndex: 30 }}
               onKeyDown={e => {
@@ -108,11 +127,24 @@ export default function StepSlider({
                 }
               }}
             >
-              {loading ? "..." : error ? "ERR" : Math.round(value)}
+              {thumb.content}
             </button>
           );
         }}
       />
     </div>
   );
+}
+
+function useDelayed(stableMostRecent, ms) {
+  const [last, set_last] = useState(stableMostRecent);
+
+  useEffect(() => {
+    let id = setTimeout(() => {
+      set_last(stableMostRecent);
+    }, ms);
+    return () => clearTimeout(id);
+  }, [stableMostRecent]);
+
+  return last;
 }
