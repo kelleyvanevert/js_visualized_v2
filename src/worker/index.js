@@ -42,7 +42,10 @@ self.onmessage = ({ data: { code, config = {} } }) => {
           ${ns}._logs = [];
           return value;
         };
-        ${transpiled};
+        ${ns}.app = function () { // to bind 'this'
+          ${transpiled};
+        };
+        ${ns}.app();
         console.log = ${ns}.__console_log;
         return ${ns}._steps;
       })())

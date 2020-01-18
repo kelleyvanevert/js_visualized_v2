@@ -68,6 +68,53 @@ export default function(babel, { ns = "__V__", detail = true } = {}) {
     return t.sequenceExpression([expressionNode]);
   }
 
+  function visit_FunctionExpression(path) {
+    const block = t.isBlockStatement(path.node.body);
+
+    path.replaceWith(
+      t.callExpression(t.identifier(ns + ".report"), [
+        t.callExpression(
+          t.memberExpression(
+            t.functionExpression(
+              null,
+              path.node.params,
+              block
+                ? path.node.body
+                : t.blockStatement([t.returnStatement(u(path.node.body))])
+            ),
+            t.identifier("bind")
+          ),
+          [t.thisExpression()]
+        ),
+        meta(
+          "expression",
+          path.node,
+          // No idea why, but for some
+          //  reason the scope of a Function node
+          //  is not the surrounding scope of it as an expression,
+          //  but rather it's own scope. Not what we're looking for!
+          path.parentPath.scope,
+          "after"
+        )
+      ])
+    );
+
+    path.skip();
+    const body = path
+      .get("arguments")[0]
+      .get("callee")
+      .get("object")
+      .get("body");
+    if (block) {
+      body.traverse(visitor); // recurse
+    } else {
+      body
+        .get("body")[0]
+        .get("argument")
+        .traverse(visitor); // recurse
+    }
+  }
+
   const visitor = {
     VariableDeclaration(path) {
       // This is an ugly trick to get the scope data "out" easily
@@ -131,58 +178,9 @@ export default function(babel, { ns = "__V__", detail = true } = {}) {
         report_after.getSibling(report_after.key + 1).skip();
       }
     },
-    Function(path) {
-      if (t.isArrowFunctionExpression(path)) {
-        const block = t.isBlockStatement(path.node.body);
-
-        path.replaceWith(
-          t.callExpression(t.identifier(ns + ".report"), [
-            t.callExpression(
-              t.memberExpression(
-                t.functionExpression(
-                  null,
-                  path.node.params,
-                  block
-                    ? path.node.body
-                    : t.blockStatement([t.returnStatement(u(path.node.body))])
-                ),
-                t.identifier("bind")
-              ),
-              [t.thisExpression()]
-            ),
-            meta(
-              "expression",
-              path.node,
-              // No idea why, but for some
-              //  reason the scope of an ArrowFunctionExpression node
-              //  is not the surrounding scope of it as an expression,
-              //  but rather it's own scope. Not what we're looking for!
-              path.parentPath.scope,
-              "after"
-            )
-          ])
-        );
-
-        path.skip();
-        const body = path
-          .get("arguments")[0]
-          .get("callee")
-          .get("object")
-          .get("body");
-        if (block) {
-          body.traverse(visitor); // recurse
-        } else {
-          body
-            .get("body")[0]
-            .get("argument")
-            .traverse(visitor); // recurse
-        }
-      }
-    },
+    FunctionExpression: visit_FunctionExpression,
+    ArrowFunctionExpression: visit_FunctionExpression,
     Expression(path) {
-      // console.log("E", path.node.type, "@", path.node.loc.start);
-      // preventloop();
-
       if (t.isCallExpression(path)) {
         const contextual = t.isMemberExpression(path.get("callee"));
 
