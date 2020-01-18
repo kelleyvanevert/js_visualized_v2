@@ -21,30 +21,20 @@ export default function App() {
   const [code, set_code] = useState(EX);
   const [cache, set_cache] = useState({});
 
-  const worker = useMemo(() => {
-    const worker = new Worker("/worker/index.js");
-
-    worker.onmessage = ({ data }) => {
-      set_cache(cache => {
-        return {
-          ...cache,
-          [data.code]: data
-        };
-      });
-    };
-
-    worker.onerror = error => {
-      console.log("actual error", error);
-    };
-
-    return worker;
-  }, []);
+  const worker = useReplacableWorker(data => {
+    set_cache(cache => {
+      return {
+        ...cache,
+        [data.code]: data
+      };
+    });
+  });
 
   useEffect(() => {
-    if (!cache[code]) {
+    if (worker && !cache[code]) {
       worker.postMessage({ code });
     }
-  }, [code, cache]);
+  }, [code, cache, worker]);
 
   const { steps, error, loading } = cache[code] || { loading: true };
 
@@ -180,4 +170,55 @@ function useMostRecent(value, initial) {
   }
 
   return mostRecentRef.current;
+}
+
+function _setupWatchDog(info) {
+  let id;
+
+  function setTimer() {
+    id = setTimeout(() => {
+      info.dead = true;
+      info.worker.terminate();
+      console.log("WORKER DIED :|");
+    }, 600);
+  }
+
+  info.worker.addEventListener("message", ({ data }) => {
+    if ("alive" in data) {
+      console.log("still alive", data.alive);
+      clearInterval(id);
+      setTimer();
+    }
+  });
+
+  setTimer();
+}
+
+function useReplacableWorker(onMessage) {
+  const ref = useRef({
+    dead: true,
+    worker: null,
+    spawned: -Infinity
+  });
+
+  if (ref.current.dead) {
+    ref.current = {
+      dead: false,
+      worker: new Worker("/worker/index.js"),
+      spawned: Date.now()
+    };
+    _setupWatchDog(ref.current);
+  }
+
+  ref.current.worker.onmessage = ({ data }) => {
+    if (!("alive" in data)) {
+      onMessage(data);
+    }
+  };
+
+  ref.current.worker.onerror = error => {
+    console.log("actual error", error);
+  };
+
+  return ref.current.worker;
 }

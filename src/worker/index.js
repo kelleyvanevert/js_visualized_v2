@@ -1,6 +1,12 @@
 import transpile from "./lib/transpile";
 
+const id = Math.floor(Math.random() * 1000);
+
 console.log("hello from worker");
+
+setInterval(() => {
+  self.postMessage({ alive: id });
+}, 100);
 
 self.onmessage = ({ data: { code } }) => {
   console.log("compiling...");
