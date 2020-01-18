@@ -74,6 +74,7 @@ export default function(babel, { ns }) {
       path.insertBefore(
         t.expressionStatement(
           t.callExpression(t.identifier(ns + ".report"), [
+            t.identifier("undefined"),
             meta("statement", path.node, path.scope, "before")
           ])
         )
@@ -85,6 +86,7 @@ export default function(babel, { ns }) {
       path.insertAfter(
         t.expressionStatement(
           t.callExpression(t.identifier(ns + ".report"), [
+            t.identifier("undefined"),
             meta("statement", path.node, path.scope, "after")
           ])
         )
@@ -122,16 +124,6 @@ export default function(babel, { ns }) {
 
         path.replaceWith(
           t.callExpression(t.identifier(ns + ".report"), [
-            meta(
-              "expression",
-              path.node,
-              // No idea why, but for some
-              //  reason the scope of an ArrowFunctionExpression node
-              //  is not the surrounding scope of it as an expression,
-              //  but rather it's own scope. Not what we're looking for!
-              path.parentPath.scope,
-              "after"
-            ),
             t.callExpression(
               t.memberExpression(
                 t.functionExpression(
@@ -144,13 +136,23 @@ export default function(babel, { ns }) {
                 t.identifier("bind")
               ),
               [t.thisExpression()]
+            ),
+            meta(
+              "expression",
+              path.node,
+              // No idea why, but for some
+              //  reason the scope of an ArrowFunctionExpression node
+              //  is not the surrounding scope of it as an expression,
+              //  but rather it's own scope. Not what we're looking for!
+              path.parentPath.scope,
+              "after"
             )
           ])
         );
 
         path.skip();
         const body = path
-          .get("arguments")[1]
+          .get("arguments")[0]
           .get("callee")
           .get("object")
           .get("body");
@@ -184,20 +186,12 @@ export default function(babel, { ns }) {
 
         const computed = contextual ? path.node.callee.computed : "irrelevant";
 
-        const report_before_call = t.callExpression(
-          t.identifier(ns + ".report"),
-          [meta("expression", path.node, path.scope, "before")]
-        );
-
         path.replaceWith(
           t.callExpression(t.identifier(ns + ".report"), [
-            meta("expression", path.node, path.scope, "after"),
-
             t.callExpression(
               t.memberExpression(
                 contextual
                   ? t.callExpression(t.identifier(ns + ".report"), [
-                      meta("expression", path.node.callee, path.scope, "after"),
                       t.memberExpression(
                         t.assignmentExpression(
                           "=",
@@ -208,23 +202,25 @@ export default function(babel, { ns }) {
                           ? u(path.node.callee.property)
                           : path.node.callee.property,
                         computed
-                      )
+                      ),
+                      meta("expression", path.node.callee, path.scope, "after")
                     ])
                   : u(path.node.callee),
                 t.identifier("call")
               ),
               [cached_context, ...path.node.arguments.map(u)]
-            )
+            ),
+            meta("expression", path.node, path.scope, "after")
           ])
         );
 
         path.skip();
 
-        const expr = path.get("arguments")[1];
+        const expr = path.get("arguments")[0];
         const call = expr;
         let caller = call.get("callee").get("object");
         if (contextual) {
-          caller = caller.get("arguments")[1];
+          caller = caller.get("arguments")[0];
           caller
             .get("object")
             .get("right")
@@ -244,13 +240,13 @@ export default function(babel, { ns }) {
       } else {
         path.replaceWith(
           t.callExpression(t.identifier(ns + ".report"), [
-            meta("expression", path.node, path.scope, "after"),
-            path.node
+            path.node,
+            meta("expression", path.node, path.scope, "after")
           ])
         );
         path.skip();
 
-        path.get("arguments")[1].traverse(visitor); // recurse
+        path.get("arguments")[0].traverse(visitor); // recurse
       }
     }
   };

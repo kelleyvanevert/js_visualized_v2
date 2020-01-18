@@ -33,7 +33,7 @@ self.onmessage = ({ data: { code } }) => {
             return Object.fromEntries(Object.entries(data));
           }
         };
-        ${ns}.report = function(meta, value) {
+        ${ns}.report = function(value, meta) {
           meta.num = ${ns}._steps.push(meta) - 1;
           meta.value = ${ns}.cp(value);
           meta.logs = ${ns}._logs;
