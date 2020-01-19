@@ -13,6 +13,12 @@ export default function Explainer() {
       <h2
         css={`
           cursor: pointer;
+          transition: color 0.15s ease;
+          color: #aaa;
+          &:hover {
+            color: #777;
+          }
+          ${expanded && `color: black !important;`}
         `}
         onClick={() => set_expanded(!expanded)}
       >
@@ -68,11 +74,15 @@ export default function Explainer() {
             visualization you see above.
           </p>
           <p>
-            Check{" "}
+            For more info, check the{" "}
             <a href="https://github.com/kelleyvanevert/js_visualized_v2">
-              the source code
+              source code
             </a>{" "}
-            for more info!
+            <em>(all contributions are welcome!)</em>, or the slightly outdated{" "}
+            <a href="https://observablehq.com/@kelleyvanevert/visualizing-js-execution-2">
+              Observable notebook
+            </a>{" "}
+            I used for prototyping.
           </p>
         </div>
       )}

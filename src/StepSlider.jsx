@@ -151,6 +151,7 @@ export default function StepSlider({
           return (
             <button
               {...props}
+              autoFocus
               ref={btn}
               style={{ ...props.style, zIndex: 30 }}
               onKeyDown={e => {

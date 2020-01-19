@@ -3,14 +3,13 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import Editor from "react-simple-code-editor";
 import { ObjectInspector, chromeLight } from "react-inspector";
 
-import { IoIosArrowDroprightCircle } from "react-icons/io";
-
 import { undescribe } from "./lib/describe";
 
 import StepSlider from "./StepSlider";
 import Highlight from "./Highlight";
 import Menu from "./Menu";
 
+import Intro from "./content/Intro";
 import Explainer from "./content/Explainer";
 
 import theme from "./theme";
@@ -264,32 +263,7 @@ export default function App() {
       {at < 0.1 && !delayed.error && (
         <div className="InfoPanelGroup">
           <div className="InfoPanel">
-            <h2>What's this?</h2>
-            <p>
-              You're looking at a little tool that helps to{" "}
-              <strong>
-                visualize the step-wise execution of JavaScript code.
-              </strong>{" "}
-              This can help people new to programming understand the mechanical
-              and structured way execution works in a visual way.
-            </p>
-            <p css="font-size: 1.1em; padding-left: 30px; position: relative;">
-              <IoIosArrowDroprightCircle
-                css={`
-                  vertical-align: text-bottom;
-                  margin-bottom: 1px;
-                  position: absolute;
-                  left: 0;
-                  top: 4px;
-                `}
-              />
-              Write some JavaScript code in the editor above, then use the
-              slider to step through the execution flow.
-            </p>
-            <p>
-              Built as a teaching purposes experiment at{" "}
-              <a href="https://codaisseur.com/">Codaisseur</a>.
-            </p>
+            <Intro />
           </div>
           <div className="InfoPanel">
             <Explainer />
