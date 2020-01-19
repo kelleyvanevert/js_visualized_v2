@@ -1,7 +1,7 @@
 // TODO:
-// - arrow function expressions without body:
-//    report a pre-expression that acts as the invocation entry
-//    similar to a body's pre-blockstatement
+// - Function entry. Added it in a while ago, then removed it
+//    again when I stopped bailing out of reporting blocks,
+//    but then started doing that again...
 
 export default function(babel, { ns = "__V__" } = {}) {
   const { types: t } = babel;
@@ -133,27 +133,29 @@ export default function(babel, { ns = "__V__" } = {}) {
       //  but rather it's own scope. Not what we're looking for!
       const scope = t.isFunction(path) ? path.parentPath.scope : path.scope;
 
-      path.insertBefore(
-        t.expressionStatement(
-          t.callExpression(t.identifier(ns + ".report"), [
-            t.identifier("undefined"),
-            meta("statement", path.node, scope, "before")
-          ])
-        )
-      );
+      if (!t.isBlockStatement(path)) {
+        path.insertBefore(
+          t.expressionStatement(
+            t.callExpression(t.identifier(ns + ".report"), [
+              t.identifier("undefined"),
+              meta("statement", path.node, scope, "before")
+            ])
+          )
+        );
 
-      path.insertAfter(
-        t.expressionStatement(
-          t.callExpression(t.identifier(ns + ".report"), [
-            t.identifier("undefined"),
-            meta("statement", path.node, scope, "after")
-          ])
-        )
-      );
-
-      const report_after = path.getSibling(path.key + 1);
+        path.insertAfter(
+          t.expressionStatement(
+            t.callExpression(t.identifier(ns + ".report"), [
+              t.identifier("undefined"),
+              meta("statement", path.node, scope, "after")
+            ])
+          )
+        );
+      }
 
       if (t.isReturnStatement(path)) {
+        const report_after = path.getSibling(path.key + 1);
+
         path.replaceWith(
           t.expressionStatement(
             t.assignmentExpression(
@@ -168,8 +170,6 @@ export default function(babel, { ns = "__V__" } = {}) {
           t.returnStatement(t.identifier(ns + ".return"))
         );
       } else if (t.isWhileStatement(path)) {
-        path.node.body._done = true; // Skip the block, because that's a bit too verbose
-
         // Transform the while-statement just a bit,
         //  so that we can show a pre-test-expression report
 
@@ -201,8 +201,6 @@ export default function(babel, { ns = "__V__" } = {}) {
           )
         );
       } else if (t.isForStatement(path)) {
-        path.node.body._done = true; // Skip the block, because that's a bit too verbose
-
         // Transform the for-statement in such a way,
         //  that we can show pre- reports for the
         //  init, test and update elements.

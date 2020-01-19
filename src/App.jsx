@@ -28,16 +28,6 @@ const inspectorTheme = {
 };
 
 const PRESETS = {
-  "Averaging grades": stripIndent`
-    const grades = [4, 8.1, 2.5, 9, 7.8];
-
-    function sum(total, grade) {
-      console.log(total, grade);
-      return total + grade;
-    }
-
-    const avg = grades.reduce(sum, 0) / grades.length;
-  `,
   "For-loop": stripIndent`
     for (let i = 0; i < 5; i = i + 1) {
       console.log("at iteration", i);
@@ -49,6 +39,21 @@ const PRESETS = {
       console.log("at iteration", i);
       i = i + 1;
     }
+  `,
+  "Averaging grades with reduce": stripIndent`
+    const grades = [4, 8.1, 2.5, 9, 7.8];
+
+    function sum(total, grade) {
+      console.log(total, grade);
+      return total + grade;
+    }
+
+    const avg = grades.reduce(sum, 0) / grades.length;
+  `,
+  "Simple map transform": stripIndent`
+    const result = [2, 4, 7].map(n => {
+      return n + 10;
+    });
   `,
   IIFE: stripIndent`
     (function () {
@@ -64,7 +69,7 @@ function _cacheKey(code, config = {}) {
 export default function App() {
   const [cache, set_cache] = useState({});
 
-  const [code, set_code] = useState(PRESETS["Averaging grades"]);
+  const [code, set_code] = useState(PRESETS["Averaging grades with reduce"]);
   const [detail, set_detail] = useState(true);
 
   const worker = useReplacableWorker(data => {
@@ -137,7 +142,7 @@ export default function App() {
                 Expression level detail
               </label>
             </p> */}
-            <h3 css="margin: 0 0 0.5rem 0;">Presets</h3>
+            {/* <h3 css="margin: 0 0 0.5rem 0;">Presets</h3> */}
             <ul
               css={`
                 margin: 0 -1rem;
@@ -157,6 +162,7 @@ export default function App() {
                   background: none;
                   margin: 0;
                   padding: 0.5rem 1rem;
+                  white-space: nowrap;
 
                   text-align: left;
                   font-family: "Work Sans", sans-serif;
@@ -176,12 +182,20 @@ export default function App() {
                 }
               `}
             >
-              {Object.entries(PRESETS).map(([title, code]) => {
+              {Object.entries(PRESETS).map(([title, preset_code]) => {
                 return (
                   <li key={title}>
                     <button
+                      css={
+                        preset_code === code
+                          ? `
+                            background: ${theme.blue} !important;
+                            color: white !important;
+                            `
+                          : ""
+                      }
                       onClick={() => {
-                        set_code(code);
+                        set_code(preset_code);
                         set_at(0);
                         set_menuOpen(false);
                         const btn = document.getElementById("StepSliderThumb");

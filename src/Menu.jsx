@@ -99,7 +99,7 @@ export default function Menu({ isOpen, onOpenChange, children, ...props }) {
               position: absolute;
               top: 4px;
               left: 0;
-              width: 240px;
+              min-width: 240px;
               z-index: 50;
 
               background: white;
