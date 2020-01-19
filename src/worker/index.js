@@ -20,7 +20,8 @@ self.onmessage = ({ data: { code, config = {} } }) => {
       ((() => {
         const ${ns} = {
           _steps: [{}],
-          _logs: []
+          _logs: [],
+          _tmp: {}
         };
         ${ns}.cp = data => {
           if (typeof data === "boolean" || typeof data === "string" || typeof data === "number" || data === null || data === void 0) {

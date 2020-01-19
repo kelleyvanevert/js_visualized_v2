@@ -21,10 +21,10 @@ const inspectorTheme = {
   ...chromeLight,
   BASE_FONT_FAMILY: "Menlo, Consolas, monospace",
   BASE_FONT_SIZE: "14px",
-  BASE_LINE_HEIGHT: 1.4,
+  BASE_LINE_HEIGHT: 1.5,
   TREENODE_FONT_FAMILY: "Menlo, Consolas, monospace",
   TREENODE_FONT_SIZE: "14px",
-  TREENODE_LINE_HEIGHT: 1.4
+  TREENODE_LINE_HEIGHT: 1.5
 };
 
 const PRESETS = {
@@ -43,10 +43,17 @@ const PRESETS = {
       console.log("at iteration", i);
     }
   `,
+  "While-loop": stripIndent`
+    let i = 0;
+    while (i < 5) {
+      console.log("at iteration", i);
+      i = i + 1;
+    }
+  `,
   IIFE: stripIndent`
-    ((num)=>{
-      return num + 2;
-    })(2);
+    (function () {
+      let x = 1;
+    }());
   `
 };
 
@@ -57,7 +64,7 @@ function _cacheKey(code, config = {}) {
 export default function App() {
   const [cache, set_cache] = useState({});
 
-  const [code, set_code] = useState(PRESETS["For-loop"]);
+  const [code, set_code] = useState(PRESETS["Averaging grades"]);
   const [detail, set_detail] = useState(true);
 
   const worker = useReplacableWorker(data => {
@@ -117,7 +124,7 @@ export default function App() {
           `}
         >
           <div css="padding: 1rem;">
-            <p css="margin-top: 0;">
+            {/* <p css="margin-top: 0;">
               <label>
                 <input
                   type="checkbox"
@@ -129,8 +136,8 @@ export default function App() {
                 />
                 Expression level detail
               </label>
-            </p>
-            <h3 css="margin: 1rem 0 0.5rem 0;">Presets</h3>
+            </p> */}
+            <h3 css="margin: 0 0 0.5rem 0;">Presets</h3>
             <ul
               css={`
                 margin: 0 -1rem;
@@ -175,7 +182,10 @@ export default function App() {
                     <button
                       onClick={() => {
                         set_code(code);
+                        set_at(0);
                         set_menuOpen(false);
+                        const btn = document.getElementById("StepSliderThumb");
+                        btn && btn.focus();
                       }}
                     >
                       {title}
@@ -184,11 +194,6 @@ export default function App() {
                 );
               })}
             </ul>
-            <p css="margin-bottom: 0;">
-              <small>
-                <em>(More stuff to be added here later.)</em>
-              </small>
-            </p>
           </div>
         </Menu>
         <StepSlider
@@ -208,7 +213,7 @@ export default function App() {
           style={{
             fontFamily: "Menlo, Consolas, monospace",
             fontSize: 18,
-            lineHeight: 1.4
+            lineHeight: 1.5
           }}
           preClassName="language-js"
           textareaClassName="Code"
@@ -219,44 +224,39 @@ export default function App() {
           <div className="InfoPanel">
             <h2>Step info</h2>
             {step.time && step.category && step.type && (
-              <p>
-                {step.category === "function_entry" ? (
-                  <em>
-                    <strong style={{ color: theme[step.time].fg }}>
-                      entering
-                    </strong>{" "}
-                    <u>function</u>
-                  </em>
-                ) : (
-                  <>
-                    <em>
-                      <strong style={{ color: theme[step.time].fg }}>
-                        {step.time === "before"
-                          ? `about to ${
-                              step.category === "expression"
-                                ? "evaluate"
-                                : "execute"
-                            }`
-                          : step.type === "statement"
-                          ? "executed"
-                          : "evaluated"}
-                      </strong>{" "}
-                      <u>{step.category}</u>{" "}
-                    </em>
-                    <span>
-                      of type <strong>{step.type}</strong>
-                    </span>{" "}
-                    {step.time === "after" && step.category === "expression" ? (
-                      <em>to:</em>
-                    ) : (
-                      ""
-                    )}
-                  </>
+              <div>
+                <p>
+                  <strong style={{ color: theme[step.time].fg }}>
+                    {step.time === "before"
+                      ? `about to ${
+                          step.category === "expression"
+                            ? "evaluate"
+                            : "execute"
+                        }`
+                      : step.type === "statement"
+                      ? "executed"
+                      : "evaluated"}
+                  </strong>{" "}
+                  {step.category}
+                  <br />
+                  <span css="margin-left: 10px;">
+                    (of type <strong>{step.type}</strong>)
+                  </span>
+                </p>
+                {step.time === "after" && step.category === "expression" && (
+                  <p>&hellip;to the value:</p>
                 )}
-              </p>
+              </div>
             )}
             {step.time === "after" && step.category === "expression" && (
-              <ObjectInspector theme={inspectorTheme} data={step.value} />
+              <ObjectInspector
+                theme={{
+                  ...inspectorTheme,
+                  BASE_FONT_SIZE: "20px",
+                  TREENODE_FONT_SIZE: "20px"
+                }}
+                data={step.value}
+              />
             )}
           </div>
           <div className="InfoPanel">

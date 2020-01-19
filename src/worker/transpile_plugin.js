@@ -1,4 +1,9 @@
-export default function(babel, { ns = "__V__", detail = true } = {}) {
+// TODO:
+// - arrow function expressions without body:
+//    report a pre-expression that acts as the invocation entry
+//    similar to a body's pre-blockstatement
+
+export default function(babel, { ns = "__V__" } = {}) {
   const { types: t } = babel;
 
   function json(data) {
@@ -28,20 +33,40 @@ export default function(babel, { ns = "__V__", detail = true } = {}) {
   let _cache_id = -1;
 
   function meta(category, node, scope, time) {
+    // return json(node.type); // for easier debugging in the AST explorer
+
     const scopes = [];
     while (scope) {
-      scopes.push(
-        Object.fromEntries(
-          Object.keys(scope.bindings).map(id => [
-            id,
-            {
-              $ast: t.arrayExpression([
-                t.callExpression(t.identifier(ns + ".cp"), [t.identifier(id)])
-              ])
-            }
-          ])
-        )
-      );
+      const ids = Object.keys(scope.bindings);
+      // This is VERY sub-optimal (only showing scopes if non-empty),
+      //  but it's the best band-aid I could come up with while leaving
+      //  the following newly introduced problem unsolved:
+      // The new traversal technique is to not recurse explicitly,
+      //  and rather just bail out whenever a node has already been seen
+      //  and/or w is a transform-introduced node (=== without source loc).
+      // This allows waaay easier coding, but it also can accidentally
+      //  introduce extra unnecessary scopes. We can identify a new scope with
+      //  `!scope.block.loc`, but it can sometimes "inherit" the bindings of
+      //  the original one. We can then articially hoist these bindings up
+      //  manually, but due to the dynamic nature of the code-transform
+      //  and because the `meta` fn is performed along-the-way, it seems
+      //  "too late" to catch up with some of the transforms, making this
+      //  solution behave erratically.  --->  Maybe we can do some kind
+      //  of traversal-exit-time meta-filling?
+      if (ids.length > 0) {
+        scopes.push(
+          Object.fromEntries(
+            ids.map(id => [
+              id,
+              {
+                $ast: t.arrayExpression([
+                  t.callExpression(t.identifier(ns + ".cp"), [t.identifier(id)])
+                ])
+              }
+            ])
+          )
+        );
+      }
       scope = scope.parent;
     }
 
@@ -56,20 +81,9 @@ export default function(babel, { ns = "__V__", detail = true } = {}) {
     return json(metadata);
   }
 
-  // A dirty trick to get expressionPath.traverse(visitor)
-  //  to work also on the top level expression:
-  //  just perform it on a sequence expression wrapped
-  //  version of the expression
-  function u(expressionNode) {
-    return t.sequenceExpression([expressionNode]);
-  }
-
   function visit_FunctionExpression(path) {
-    if (!path.node.loc) {
-      // self-inserted, don't traverse
-      path.skip();
-      return;
-    }
+    if (!path.node.loc || path.node._done) return;
+    path.node._done = true;
 
     const block = t.isBlockStatement(path.node.body);
 
@@ -81,36 +95,8 @@ export default function(babel, { ns = "__V__", detail = true } = {}) {
               null,
               path.node.params,
               block
-                ? t.blockStatement([
-                    // This acts as a report of the function's invocation entry
-                    t.expressionStatement(
-                      t.callExpression(t.identifier(ns + ".report"), [
-                        t.identifier("undefined"),
-                        meta(
-                          "function_entry",
-                          path.node,
-                          path.scope, // the function's own scope
-                          "enter"
-                        )
-                      ])
-                    ),
-                    ...path.node.body.body
-                  ])
-                : t.blockStatement([
-                    // This acts as a report of the function's invocation entry
-                    t.expressionStatement(
-                      t.callExpression(t.identifier(ns + ".report"), [
-                        t.identifier("undefined"),
-                        meta(
-                          "function_entry",
-                          path.node,
-                          path.scope, // the function's own scope
-                          "enter"
-                        )
-                      ])
-                    ),
-                    t.returnStatement(u(path.node.body))
-                  ])
+                ? path.node.body
+                : t.blockStatement([t.returnStatement(path.node.body)])
             ),
             t.identifier("bind")
           ),
@@ -128,21 +114,6 @@ export default function(babel, { ns = "__V__", detail = true } = {}) {
         )
       ])
     );
-
-    path.skip();
-    const body = path
-      .get("arguments")[0]
-      .get("callee")
-      .get("object")
-      .get("body");
-    if (block) {
-      body.traverse(visitor); // recurse
-    } else {
-      body
-        .get("body")[1]
-        .get("argument")
-        .traverse(visitor); // recurse
-    }
   }
 
   const visitor = {
@@ -153,13 +124,8 @@ export default function(babel, { ns = "__V__", detail = true } = {}) {
       path.node.kind = "var";
     },
     Statement(path) {
-      if (!path.node.loc) {
-        // self-inserted, don't traverse
-        path.skip();
-        return;
-      }
-
-      if (t.isBlockStatement(path.node)) return;
+      if (!path.node.loc || path.node._done) return;
+      path.node._done = true;
 
       // No idea why, but for some
       //  reason the scope of a Function node
@@ -176,9 +142,6 @@ export default function(babel, { ns = "__V__", detail = true } = {}) {
         )
       );
 
-      const report_before = path.getSibling(path.key - 1);
-      report_before.skip();
-
       path.insertAfter(
         t.expressionStatement(
           t.callExpression(t.identifier(ns + ".report"), [
@@ -189,54 +152,117 @@ export default function(babel, { ns = "__V__", detail = true } = {}) {
       );
 
       const report_after = path.getSibling(path.key + 1);
-      report_after.skip();
 
-      if (t.isFunctionDeclaration(path)) {
-        path.get("body").unshiftContainer(
-          "body",
-          // This acts as a report of the function's invocation entry
-          t.expressionStatement(
-            t.callExpression(t.identifier(ns + ".report"), [
-              t.identifier("undefined"),
-              meta(
-                "function_entry",
-                path.node,
-                path.scope, // the function's own scope
-                "enter"
-              )
-            ])
-          )
-        );
-      } else if (t.isReturnStatement(path)) {
+      if (t.isReturnStatement(path)) {
         path.replaceWith(
           t.expressionStatement(
             t.assignmentExpression(
               "=",
               t.identifier(ns + ".return"),
-              u(path.node.argument)
+              path.node.argument
             )
           )
         );
-        path.skip();
-        path
-          .get("expression")
-          .get("right")
-          .traverse(visitor); // recurse
 
         report_after.insertAfter(
           t.returnStatement(t.identifier(ns + ".return"))
         );
-        report_after.getSibling(report_after.key + 1).skip();
+      } else if (t.isWhileStatement(path)) {
+        path.node.body._done = true; // Skip the block, because that's a bit too verbose
+
+        // Transform the while-statement just a bit,
+        //  so that we can show a pre-test-expression report
+
+        const tmp_test = t.memberExpression(
+          t.identifier(ns + ".cache"),
+          t.numericLiteral(++_cache_id),
+          true
+        );
+
+        path.replaceWith(
+          t.whileStatement(
+            t.booleanLiteral(true),
+            t.blockStatement([
+              t.expressionStatement(
+                t.callExpression(t.identifier(ns + ".report"), [
+                  t.identifier("undefined"),
+                  meta("expression", path.node.test, scope, "before")
+                ])
+              ),
+              t.expressionStatement(
+                t.assignmentExpression("=", tmp_test, path.node.test)
+              ),
+              t.ifStatement(
+                t.unaryExpression("!", tmp_test),
+                t.breakStatement()
+              ),
+              ...path.node.body.body
+            ])
+          )
+        );
+      } else if (t.isForStatement(path)) {
+        path.node.body._done = true; // Skip the block, because that's a bit too verbose
+
+        // Transform the for-statement in such a way,
+        //  that we can show pre- reports for the
+        //  init, test and update elements.
+
+        let init_type = path.node.init
+          ? t.isVariableDeclaration(path.node.init)
+            ? "decl"
+            : "expr"
+          : "none";
+
+        let init_as_statement = {
+          decl: () => path.node.init,
+          expr: () => t.expressionStatement(path.node.init),
+          none: () => t.expressionStatement(t.nullLiteral())
+        }[init_type]();
+
+        const tmp_test = t.memberExpression(
+          t.identifier(ns + ".cache"),
+          t.numericLiteral(++_cache_id),
+          true
+        );
+
+        path.replaceWith(
+          t.blockStatement([
+            init_as_statement,
+            t.whileStatement(
+              t.booleanLiteral(true),
+              t.blockStatement([
+                t.expressionStatement(
+                  t.callExpression(t.identifier(ns + ".report"), [
+                    t.identifier("undefined"),
+                    meta("expression", path.node.test, scope, "before")
+                  ])
+                ),
+                t.expressionStatement(
+                  t.assignmentExpression("=", tmp_test, path.node.test)
+                ),
+                t.ifStatement(
+                  t.unaryExpression("!", tmp_test),
+                  t.breakStatement()
+                ),
+                ...path.node.body.body,
+                t.expressionStatement(
+                  t.callExpression(t.identifier(ns + ".report"), [
+                    t.identifier("undefined"),
+                    meta("expression", path.node.update, scope, "before")
+                  ])
+                ),
+                t.expressionStatement(path.node.update)
+              ])
+            )
+          ])
+        );
       }
     },
     FunctionExpression: visit_FunctionExpression,
     ArrowFunctionExpression: visit_FunctionExpression,
     Expression(path) {
-      if (!path.node.loc) {
-        // self-inserted, don't traverse
-        path.skip();
-        return;
-      }
+      if (!path.node.loc || path.node._done) return;
+      path.node._done = true;
 
       if (t.isCallExpression(path)) {
         const contextual = t.isMemberExpression(path.get("callee"));
@@ -264,47 +290,23 @@ export default function(babel, { ns = "__V__", detail = true } = {}) {
                         t.assignmentExpression(
                           "=",
                           cached_context,
-                          u(path.node.callee.object)
+                          path.node.callee.object
                         ),
                         computed
-                          ? u(path.node.callee.property)
+                          ? path.node.callee.property
                           : path.node.callee.property,
                         computed
                       ),
                       meta("expression", path.node.callee, path.scope, "after")
                     ])
-                  : u(path.node.callee),
+                  : path.node.callee,
                 t.identifier("call")
               ),
-              [cached_context, ...path.node.arguments.map(u)]
+              [cached_context, ...path.node.arguments]
             ),
             meta("expression", path.node, path.scope, "after")
           ])
         );
-
-        path.skip();
-
-        const expr = path.get("arguments")[0];
-        const call = expr;
-        let caller = call.get("callee").get("object");
-        if (contextual) {
-          caller = caller.get("arguments")[0];
-          caller
-            .get("object")
-            .get("right")
-            .traverse(visitor); // recurse
-          if (computed) {
-            caller.get("property").traverse(visitor); // recurse
-          }
-        } else {
-          caller.traverse(visitor); // recurse
-        }
-        call
-          .get("arguments")
-          .slice(1)
-          .forEach(argPath => {
-            argPath.traverse(visitor); // recurse
-          });
       } else {
         path.replaceWith(
           t.callExpression(t.identifier(ns + ".report"), [
@@ -312,9 +314,6 @@ export default function(babel, { ns = "__V__", detail = true } = {}) {
             meta("expression", path.node, path.scope, "after")
           ])
         );
-        path.skip();
-
-        path.get("arguments")[0].traverse(visitor); // recurse
       }
     }
   };

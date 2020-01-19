@@ -151,6 +151,7 @@ export default function StepSlider({
           return (
             <button
               {...props}
+              id="StepSliderThumb"
               autoFocus
               ref={btn}
               style={{ ...props.style, zIndex: 30 }}
