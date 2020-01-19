@@ -5,6 +5,8 @@ import { ObjectInspector, chromeLight } from "react-inspector";
 
 import { IoIosArrowDroprightCircle } from "react-icons/io";
 
+import { undescribe } from "./lib/describe";
+
 import StepSlider from "./StepSlider";
 import Highlight from "./Highlight";
 import Menu from "./Menu";
@@ -24,8 +26,6 @@ const inspectorTheme = {
   TREENODE_FONT_SIZE: "14px",
   TREENODE_LINE_HEIGHT: 1.4
 };
-
-console.log(chromeLight);
 
 const EX = `const grades = [4, 8.1, 2.5, 9, 7.8];
 
@@ -47,6 +47,9 @@ export default function App() {
   const [detail, set_detail] = useState(true);
 
   const worker = useReplacableWorker(data => {
+    if (data.steps) {
+      data.steps = undescribe(data.steps);
+    }
     set_cache(cache => {
       return {
         ...cache,
@@ -333,18 +336,19 @@ function _setupWatchDog(info) {
     }
   });
 
-  setTimer();
+  // Only automatically start watching after we've
+  //  succesfully spawned at least 1 worker,
+  //  because the first spawn will take considerably
+  //  longer due to the network request involved
+  !info.first && setTimer();
 }
 
 function useReplacableWorker(onMessage) {
-  const ref = useRef({
-    dead: true,
-    worker: null,
-    spawned: -Infinity
-  });
+  const ref = useRef();
 
-  if (ref.current.dead) {
+  if (!ref.current || ref.current.dead) {
     ref.current = {
+      first: !ref.current,
       dead: false,
       worker: new Worker("/worker/index.js"),
       spawned: Date.now()
@@ -359,7 +363,7 @@ function useReplacableWorker(onMessage) {
   };
 
   ref.current.worker.onerror = error => {
-    console.log("actual error", error);
+    console.log("actual error in worker", error);
   };
 
   return ref.current.worker;

@@ -1,5 +1,6 @@
 import * as babel from "@babel/core";
 
+import { describe } from "../lib/describe";
 import transpilerPlugin from "./transpile_plugin";
 
 const id = Math.floor(Math.random() * 1000);
@@ -42,7 +43,7 @@ self.onmessage = ({ data: { code, config = {} } }) => {
           ${ns}._logs = [];
           return value;
         };
-        ${ns}.app = function () { // to bind 'this'
+        ${ns}.app = function () {
           ${transpiled};
         };
         ${ns}.app();
@@ -70,14 +71,7 @@ self.onmessage = ({ data: { code, config = {} } }) => {
       code,
       transpiled,
       config,
-      steps: JSON.parse(
-        JSON.stringify(steps, (key, val) => {
-          return val === void 0 ? `${ns}.UNDEF` : val;
-        }),
-        (key, val) => {
-          return val === `${ns}.UNDEF` ? void 0 : val;
-        }
-      )
+      steps: describe(steps)
     });
   } catch (error) {
     console.log("  ERR");

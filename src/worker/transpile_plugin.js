@@ -53,10 +53,6 @@ export default function(babel, { ns = "__V__", detail = true } = {}) {
       scopes
     };
 
-    // if (scope._hasReturn) {
-    //   metadata.scope["$return"] = { $ast: t.identifier(ns + ".return") };
-    // }
-
     return json(metadata);
   }
 
@@ -140,7 +136,6 @@ export default function(babel, { ns = "__V__", detail = true } = {}) {
       .get("object")
       .get("body");
     if (block) {
-      console.log((body.node.body[0].__skip = true));
       body.traverse(visitor); // recurse
     } else {
       body
@@ -213,7 +208,6 @@ export default function(babel, { ns = "__V__", detail = true } = {}) {
           )
         );
       } else if (t.isReturnStatement(path)) {
-        path.scope._hasReturn = true;
         path.replaceWith(
           t.expressionStatement(
             t.assignmentExpression(
