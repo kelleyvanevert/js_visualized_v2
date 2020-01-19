@@ -2,15 +2,12 @@ import "styled-components/macro";
 import React, { useState } from "react";
 
 import OutsideClickDetector from "./OutsideClickDetector";
-import theme from "./theme";
 
-export default function Menu({ children, ...props }) {
-  const [open, set_open] = useState(false);
-
+export default function Menu({ isOpen, onOpenChange, children, ...props }) {
   return (
-    <OutsideClickDetector {...props} onOutsideClick={() => set_open(false)}>
+    <OutsideClickDetector {...props} onOutsideClick={() => onOpenChange(false)}>
       <button
-        onClick={() => set_open(!open)}
+        onClick={() => onOpenChange(!isOpen)}
         css={`
           display: flex;
           flex-direction: column;
@@ -58,33 +55,33 @@ export default function Menu({ children, ...props }) {
         <span className="center">
           <span
             style={{
-              transform: open
+              transform: isOpen
                 ? "translate(-6px, -6px) rotate(+45deg)"
                 : "translate(-6px, -8px)"
             }}
           />
           <span
             style={{
-              transform: open
+              transform: isOpen
                 ? "translate(+6px, -6px) rotate(-45deg)"
                 : "translate(+6px, -8px)"
             }}
           />
           <span
             style={{
-              transform: open ? "scale(0, 1)" : "scale(1.6, 1)"
+              transform: isOpen ? "scale(0, 1)" : "scale(1.6, 1)"
             }}
           />
           <span
             style={{
-              transform: open
+              transform: isOpen
                 ? "translate(-6px, +6px) rotate(-45deg)"
                 : "translate(-6px, +8px)"
             }}
           />
           <span
             style={{
-              transform: open
+              transform: isOpen
                 ? "translate(+6px, +6px) rotate(+45deg)"
                 : "translate(+6px, +8px)"
             }}
@@ -96,7 +93,7 @@ export default function Menu({ children, ...props }) {
           position: relative;
         `}
       >
-        {open && (
+        {isOpen && (
           <div
             css={`
               position: absolute;
@@ -104,8 +101,6 @@ export default function Menu({ children, ...props }) {
               left: 0;
               width: 240px;
               z-index: 50;
-
-              padding: 16px;
 
               background: white;
               border-radius: 4px;

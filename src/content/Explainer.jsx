@@ -28,7 +28,7 @@ export default function Explainer() {
             vertical-align: text-bottom;
             margin-bottom: 2px;
             transition: transform 0.15s ease;
-            ${expanded && "transform: rotate(180deg);"}
+            ${expanded ? "transform: rotate(180deg);" : ""}
           `}
         />
       </h2>

@@ -2,6 +2,7 @@ import "styled-components/macro";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import Editor from "react-simple-code-editor";
 import { ObjectInspector, chromeLight } from "react-inspector";
+import stripIndent from "common-tags/lib/stripIndent";
 
 import { undescribe } from "./lib/describe";
 
@@ -26,14 +27,28 @@ const inspectorTheme = {
   TREENODE_LINE_HEIGHT: 1.4
 };
 
-const EX = `const grades = [4, 8.1, 2.5, 9, 7.8];
+const PRESETS = {
+  "Averaging grades": stripIndent`
+    const grades = [4, 8.1, 2.5, 9, 7.8];
 
-function sum(total, grade) {
-  console.log(total, grade);
-  return total + grade;
-}
+    function sum(total, grade) {
+      console.log(total, grade);
+      return total + grade;
+    }
 
-const avg = grades.reduce(sum, 0) / grades.length;`;
+    const avg = grades.reduce(sum, 0) / grades.length;
+  `,
+  "For-loop": stripIndent`
+    for (let i = 0; i < 5; i = i + 1) {
+      console.log("at iteration", i);
+    }
+  `,
+  IIFE: stripIndent`
+    ((num)=>{
+      return num + 2;
+    })(2);
+  `
+};
 
 function _cacheKey(code, config = {}) {
   return (config.detail ? "Y" : "N") + ";" + code;
@@ -42,7 +57,7 @@ function _cacheKey(code, config = {}) {
 export default function App() {
   const [cache, set_cache] = useState({});
 
-  const [code, set_code] = useState(EX);
+  const [code, set_code] = useState(PRESETS["For-loop"]);
   const [detail, set_detail] = useState(true);
 
   const worker = useReplacableWorker(data => {
@@ -84,6 +99,8 @@ export default function App() {
     : 0;
   const step = steps && steps[at];
 
+  const [menuOpen, set_menuOpen] = useState(false);
+
   return (
     <div className="App">
       <div
@@ -93,28 +110,86 @@ export default function App() {
         `}
       >
         <Menu
+          isOpen={menuOpen}
+          onOpenChange={set_menuOpen}
           css={`
-            margin-right: 16px;
+            margin-right: 1rem;
           `}
         >
-          <p css="margin-top: 0;">
-            <label>
-              <input
-                type="checkbox"
-                checked={detail}
-                onChange={e => set_detail(e.target.checked)}
-                css={`
-                  margin-right: 16px;
-                `}
-              />
-              Expression level detail
-            </label>
-          </p>
-          <p css="margin-bottom: 0;">
-            <small>
-              <em>(More stuff to be added here later.)</em>
-            </small>
-          </p>
+          <div css="padding: 1rem;">
+            <p css="margin-top: 0;">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={detail}
+                  onChange={e => set_detail(e.target.checked)}
+                  css={`
+                    margin-right: 1rem;
+                  `}
+                />
+                Expression level detail
+              </label>
+            </p>
+            <h3 css="margin: 1rem 0 0.5rem 0;">Presets</h3>
+            <ul
+              css={`
+                margin: 0 -1rem;
+                padding: 0;
+
+                li {
+                  display: block;
+                  margin: 0;
+                  padding: 0;
+                }
+
+                button {
+                  display: block;
+                  box-sizing: border-box;
+                  width: 100%;
+                  border: 2px solid transparent;
+                  background: none;
+                  margin: 0;
+                  padding: 0.5rem 1rem;
+
+                  text-align: left;
+                  font-family: "Work Sans", sans-serif;
+                  font-size: 1rem;
+
+                  cursor: pointer;
+                  outline: none;
+
+                  &:hover,
+                  &:focus {
+                    background: #eee;
+                  }
+                  &:active {
+                    background: ${theme.blue};
+                    color: white;
+                  }
+                }
+              `}
+            >
+              {Object.entries(PRESETS).map(([title, code]) => {
+                return (
+                  <li key={title}>
+                    <button
+                      onClick={() => {
+                        set_code(code);
+                        set_menuOpen(false);
+                      }}
+                    >
+                      {title}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <p css="margin-bottom: 0;">
+              <small>
+                <em>(More stuff to be added here later.)</em>
+              </small>
+            </p>
+          </div>
         </Menu>
         <StepSlider
           max={_lastSteps.length - 1}
