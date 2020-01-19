@@ -149,7 +149,7 @@ export default function App() {
                 {step.category === "function_entry" ? (
                   <em>
                     <strong style={{ color: theme[step.time].fg }}>
-                      just entered
+                      entering
                     </strong>{" "}
                     <u>function</u>
                   </em>
