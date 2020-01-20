@@ -64,6 +64,12 @@ export default function(babel, { ns = "__V__" } = {}) {
     for (const k in clone) {
       if (typeof clone[k] === "object" && "type" in clone[k]) {
         clone[k] = clone_and_detach(clone[k]);
+      } else if (
+        Array.isArray(clone[k]) &&
+        clone[k][0] &&
+        "type" in clone[k][0]
+      ) {
+        clone[k] = clone[k].map(clone_and_detach);
       }
     }
     return clone;
