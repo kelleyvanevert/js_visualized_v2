@@ -353,11 +353,25 @@ export default function(babel, { ns = "__V__" } = {}) {
         // Technically speaking, this is not fully correct, because
         //  of the case where the non-reported copy contains a side-effect.
         // For example:
-        //   let c = 0;
-        //   let arr = [0];
-        //   arr[c++]++;
+        //
+        //     let c = 0;
+        //     let arr = [0];
+        //     arr[c++]++;
+        //
         // Fixing this edge-case would require recursively temporarily
-        //  storing computed property names.
+        //  storing computed property names, something like this:
+        //
+        //     ++E
+        //     ( E_compute = r1(E_cache) + 1, r2(E_cache) )
+        //
+        //     where
+        //       [E_compute, E_cache] = split(E)
+        //
+        //       split:
+        //         o[p] ->  (TMP = p, o[TMP])    // E_compute
+        //                  o[TMP]               // E_cache
+        //         e    ->  e                    // E_compute
+        //                  e                    // E_cache
 
         if (path.node.prefix) {
           // original:          ++i
