@@ -1,7 +1,36 @@
-// TODO:
-// - Function entry. Added it in a while ago, then removed it
-//    again when I stopped bailing out of reporting blocks,
-//    but then started doing that again...
+/*
+
+    The visitor in bird's eye view:
+    ===
+    - Change let/const to var for scope reporting
+
+    - Statements => report before and after
+      - don't pre-/post report block statements
+      - customized: while statement (added pre-reporting)
+      - customized: for statement   (added pre-reporting)
+
+    - Expressions => only report after
+      - don't report LVals of assignments
+      - solved: reporting function calls and context binding
+      - semi-solved: update expressions
+
+    TODO:
+    ===
+    - Function entry. Added it in a while ago, then removed it
+      again when I stopped bailing out of reporting blocks,
+      but then started doing that again...
+
+    - Track the return value of a function execution's scope
+      (there's a partial solution in the code already)
+
+    - Function declaration hoisting. JavaScript just does it,
+      and the scope visualizer shows it, but the stepper doesn't.
+
+    - Assignment security of let/const. (Currently turning
+      everything into var, in order to get the scope visualizer
+      to work.)
+
+*/
 
 export default function(babel, { ns = "__V__" } = {}) {
   const { types: t } = babel;
@@ -30,16 +59,33 @@ export default function(babel, { ns = "__V__" } = {}) {
     }
   }
 
-  let _cache_id = -1;
-
-  function _clone_and_detach(node) {
+  function clone_and_detach(node) {
     const { loc, ...clone } = node;
-    for (const key in clone) {
-      if (typeof clone[key] === "object" && "type" in clone[key]) {
-        clone[key] = _clone_and_detach(clone[key]);
+    for (const k in clone) {
+      if (typeof clone[k] === "object" && "type" in clone[k]) {
+        clone[k] = clone_and_detach(clone[k]);
       }
     }
     return clone;
+  }
+
+  function bailout_lval(node) {
+    node._done = true;
+    for (const k in node) {
+      // We bail out of reporting on LVals of assignment expressions,
+      //  EXCEPT in the case of computed properties, for example:
+      // arr[i + 1] = "hi";
+      const is_computed_property =
+        k === "property" && t.isMemberExpression(node) && node.computed;
+
+      if (
+        !is_computed_property &&
+        typeof node[k] === "object" &&
+        "type" in node[k]
+      ) {
+        bailout_lval(node[k]);
+      }
+    }
   }
 
   function meta(category, node, scope, time) {
@@ -91,20 +137,34 @@ export default function(babel, { ns = "__V__" } = {}) {
     return json(metadata);
   }
 
+  function REPORT(value, node, scope, time) {
+    return t.callExpression(t.identifier(ns + ".report"), [
+      value || t.identifier("undefined"),
+      meta(t.isExpression(node) ? "expression" : "statement", node, scope, time)
+    ]);
+  }
+
+  let _cache_id = -1;
+  function make_temporary_variable() {
+    return t.memberExpression(
+      t.identifier(ns + ".cache"),
+      t.numericLiteral(++_cache_id),
+      true
+    );
+  }
+
   function visit_FunctionExpression(path) {
     if (!path.node.loc || path.node._done) return;
     path.node._done = true;
 
-    const block = t.isBlockStatement(path.node.body);
-
     path.replaceWith(
-      t.callExpression(t.identifier(ns + ".report"), [
+      REPORT(
         t.callExpression(
           t.memberExpression(
             t.functionExpression(
               null,
               path.node.params,
-              block
+              t.isBlockStatement(path.node.body)
                 ? path.node.body
                 : t.blockStatement([t.returnStatement(path.node.body)])
             ),
@@ -112,25 +172,22 @@ export default function(babel, { ns = "__V__" } = {}) {
           ),
           [t.thisExpression()]
         ),
-        meta(
-          "expression",
-          path.node,
-          // No idea why, but for some
-          //  reason the scope of a Function node
-          //  is not the surrounding scope of it as an expression,
-          //  but rather it's own scope. Not what we're looking for!
-          path.parentPath.scope,
-          "after"
-        )
-      ])
+        path.node,
+        // No idea why, but for some
+        //  reason the scope of a Function node
+        //  is not the surrounding scope of it as an expression,
+        //  but rather it's own scope. Not what we're looking for!
+        path.parentPath.scope,
+        "after"
+      )
     );
   }
 
   const visitor = {
+    // This is an ugly trick to get the scope data "out" easily
+    // If we leave the variables as let and const, then we run into non-initialized errors
+    //  when reporting back the scope's contents.
     VariableDeclaration(path) {
-      // This is an ugly trick to get the scope data "out" easily
-      // If we leave the variables as let and const, then we run into non-initialized errors
-      //  when reporting back the scope's contents.
       path.node.kind = "var";
     },
     Statement(path) {
@@ -145,21 +202,11 @@ export default function(babel, { ns = "__V__" } = {}) {
 
       if (!t.isBlockStatement(path)) {
         path.insertBefore(
-          t.expressionStatement(
-            t.callExpression(t.identifier(ns + ".report"), [
-              t.identifier("undefined"),
-              meta("statement", path.node, scope, "before")
-            ])
-          )
+          t.expressionStatement(REPORT(null, path.node, scope, "before"))
         );
 
         path.insertAfter(
-          t.expressionStatement(
-            t.callExpression(t.identifier(ns + ".report"), [
-              t.identifier("undefined"),
-              meta("statement", path.node, scope, "after")
-            ])
-          )
+          t.expressionStatement(REPORT(null, path.node, scope, "after"))
         );
       }
 
@@ -183,29 +230,19 @@ export default function(babel, { ns = "__V__" } = {}) {
         // Transform the while-statement just a bit,
         //  so that we can show a pre-test-expression report
 
-        const tmp_test = t.memberExpression(
-          t.identifier(ns + ".cache"),
-          t.numericLiteral(++_cache_id),
-          true
-        );
+        const TMP = make_temporary_variable();
 
         path.replaceWith(
           t.whileStatement(
             t.booleanLiteral(true),
             t.blockStatement([
               t.expressionStatement(
-                t.callExpression(t.identifier(ns + ".report"), [
-                  t.identifier("undefined"),
-                  meta("expression", path.node.test, scope, "before")
-                ])
+                REPORT(null, path.node.test, scope, "before")
               ),
               t.expressionStatement(
-                t.assignmentExpression("=", tmp_test, path.node.test)
+                t.assignmentExpression("=", TMP, path.node.test)
               ),
-              t.ifStatement(
-                t.unaryExpression("!", tmp_test),
-                t.breakStatement()
-              ),
+              t.ifStatement(t.unaryExpression("!", TMP), t.breakStatement()),
               ...path.node.body.body
             ])
           )
@@ -227,11 +264,7 @@ export default function(babel, { ns = "__V__" } = {}) {
           none: () => t.expressionStatement(t.nullLiteral())
         }[init_type]();
 
-        const tmp_test = t.memberExpression(
-          t.identifier(ns + ".cache"),
-          t.numericLiteral(++_cache_id),
-          true
-        );
+        const TMP = make_temporary_variable();
 
         path.replaceWith(
           t.blockStatement([
@@ -240,24 +273,15 @@ export default function(babel, { ns = "__V__" } = {}) {
               t.booleanLiteral(true),
               t.blockStatement([
                 t.expressionStatement(
-                  t.callExpression(t.identifier(ns + ".report"), [
-                    t.identifier("undefined"),
-                    meta("expression", path.node.test, scope, "before")
-                  ])
+                  REPORT(null, path.node.test, scope, "before")
                 ),
                 t.expressionStatement(
-                  t.assignmentExpression("=", tmp_test, path.node.test)
+                  t.assignmentExpression("=", TMP, path.node.test)
                 ),
-                t.ifStatement(
-                  t.unaryExpression("!", tmp_test),
-                  t.breakStatement()
-                ),
+                t.ifStatement(t.unaryExpression("!", TMP), t.breakStatement()),
                 ...path.node.body.body,
                 t.expressionStatement(
-                  t.callExpression(t.identifier(ns + ".report"), [
-                    t.identifier("undefined"),
-                    meta("expression", path.node.update, scope, "before")
-                  ])
+                  REPORT(null, path.node.update, scope, "before")
                 ),
                 t.expressionStatement(path.node.update)
               ])
@@ -273,111 +297,108 @@ export default function(babel, { ns = "__V__" } = {}) {
       path.node._done = true;
 
       if (t.isAssignmentExpression(path)) {
-        path.node.left = _clone_and_detach(path.node.left);
-      } else if (t.isCallExpression(path)) {
+        bailout_lval(path.node.left);
+      }
+
+      if (t.isCallExpression(path)) {
         const contextual = t.isMemberExpression(path.get("callee"));
 
         // Automatically works even if non-contextual,
         //  because then the absence of the assignment,
         //  the cached item will undefined
-        const cached_context = contextual
-          ? t.memberExpression(
-              t.identifier(ns + ".cache"),
-              t.numericLiteral(++_cache_id),
-              true
-            )
+        const TMP_context = contextual
+          ? make_temporary_variable()
           : t.identifier("undefined");
 
-        const computed = contextual ? path.node.callee.computed : "irrelevant";
+        const computed = contextual
+          ? path.node.callee.computed
+          : "(irrelevant)";
 
         path.replaceWith(
-          t.callExpression(t.identifier(ns + ".report"), [
+          REPORT(
             t.callExpression(
               t.memberExpression(
                 contextual
-                  ? t.callExpression(t.identifier(ns + ".report"), [
+                  ? REPORT(
                       t.memberExpression(
                         t.assignmentExpression(
                           "=",
-                          cached_context,
+                          TMP_context,
                           path.node.callee.object
                         ),
-                        computed
-                          ? path.node.callee.property
-                          : path.node.callee.property,
+                        path.node.callee.property,
                         computed
                       ),
-                      meta("expression", path.node.callee, path.scope, "after")
-                    ])
+                      path.node.callee,
+                      path.scope,
+                      "after"
+                    )
                   : path.node.callee,
                 t.identifier("call")
               ),
-              [cached_context, ...path.node.arguments]
+              [TMP_context, ...path.node.arguments]
             ),
-            meta("expression", path.node, path.scope, "after")
-          ])
+            path.node,
+            path.scope,
+            "after"
+          )
         );
       } else if (t.isUpdateExpression(path)) {
+        // Technically speaking, this is not fully correct, because
+        //  of the case where the non-reported copy contains a side-effect.
+        // For example:
+        //   let c = 0;
+        //   let arr = [0];
+        //   arr[c++]++;
+        // Fixing this edge-case would require recursively temporarily
+        //  storing computed property names.
+
         if (path.node.prefix) {
           // original:          ++i
           // w/o intervention:  r2( ++r1(i) )
           // intervened:        ( i = r1(i) + 1, r2(i) )
           const arg = path.node.argument; // to be reported
-          const _arg = _clone_and_detach(arg); // non-reported copy
+          const __arg = clone_and_detach(arg); // non-reported copy
           path.replaceWith(
             t.sequenceExpression([
               t.assignmentExpression(
                 "=",
-                _arg,
+                __arg,
                 t.binaryExpression(
                   path.node.operator[0],
                   arg,
                   t.numericLiteral(1)
                 )
               ),
-              t.callExpression(t.identifier(ns + ".report"), [
-                _arg,
-                meta("expression", path.node, path.scope, "after")
-              ])
+              REPORT(__arg, path.node, path.scope, "after")
             ])
           );
         } else {
           // original:          i++
           // w/o intervention:  r2( r1(i)++ )
           // intervened:        ( TMP = r1(i), i = TMP + 1, r2(TMP) )
-          const tmp = t.memberExpression(
-            t.identifier(ns + ".cache"),
-            t.numericLiteral(++_cache_id),
-            true
-          );
+          const TMP = make_temporary_variable();
           const arg = path.node.argument; // to be reported
-          const _arg = _clone_and_detach(arg); // non-reported copy
+          const __arg = clone_and_detach(arg); // non-reported copy
           path.replaceWith(
             t.sequenceExpression([
-              t.assignmentExpression("=", tmp, arg),
+              t.assignmentExpression("=", TMP, arg),
               t.assignmentExpression(
                 "=",
-                _arg,
+                __arg,
                 t.binaryExpression(
                   path.node.operator[0],
-                  tmp,
+                  TMP,
                   t.numericLiteral(1)
                 )
               ),
-              t.callExpression(t.identifier(ns + ".report"), [
-                tmp,
-                meta("expression", path.node, path.scope, "after")
-              ])
+              REPORT(TMP, path.node, path.scope, "after")
             ])
           );
         }
       } else {
-        path.replaceWith(
-          t.callExpression(t.identifier(ns + ".report"), [
-            path.node,
-            meta("expression", path.node, path.scope, "after")
-          ])
-        );
+        // Finally, the normal case!
+        path.replaceWith(REPORT(path.node, path.node, path.scope, "after"));
       }
     }
   };

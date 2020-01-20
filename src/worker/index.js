@@ -17,7 +17,7 @@ self.onmessage = ({ data: { code, config = {} } }) => {
   try {
     const transpiled = transpile(code, config);
     let steps = eval(`
-      ((() => {
+      (((undefined) => {
         const ${ns} = {
           _steps: [{}],
           _logs: [],

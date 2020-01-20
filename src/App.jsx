@@ -209,24 +209,10 @@ export default function App() {
             margin-right: 1rem;
           `}
         >
-          <div css="padding: 1rem;">
-            {/* <p css="margin-top: 0;">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={detail}
-                  onChange={e => set_detail(e.target.checked)}
-                  css={`
-                    margin-right: 1rem;
-                  `}
-                />
-                Expression level detail
-              </label>
-            </p> */}
-            {/* <h3 css="margin: 0 0 0.5rem 0;">Presets</h3> */}
+          <div css="padding: 0.6rem 0;">
             <ul
               css={`
-                margin: 0 -1rem;
+                margin: 0;
                 padding: 0;
 
                 li {
@@ -242,12 +228,12 @@ export default function App() {
                   border: 2px solid transparent;
                   background: none;
                   margin: 0;
-                  padding: 0.5rem 1rem;
+                  padding: 0.3rem 1rem;
                   white-space: nowrap;
 
                   text-align: left;
                   font-family: "Work Sans", sans-serif;
-                  font-size: 1rem;
+                  font-size: 0.9rem;
 
                   cursor: pointer;
                   outline: none;
@@ -419,7 +405,7 @@ export default function App() {
                   >
                     {items.map((item, i) => {
                       return (
-                        <div css="margin-right: 16px;">
+                        <div key={i} css="margin-right: 16px;">
                           <ObjectInspector theme={inspectorTheme} data={item} />
                         </div>
                       );
