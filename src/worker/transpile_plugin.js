@@ -32,8 +32,18 @@ export default function(babel, { ns = "__V__" } = {}) {
 
   let _cache_id = -1;
 
+  function _clone_and_detach(node) {
+    const { loc, ...clone } = node;
+    for (const key in clone) {
+      if (typeof clone[key] === "object" && "type" in clone[key]) {
+        clone[key] = _clone_and_detach(clone[key]);
+      }
+    }
+    return clone;
+  }
+
   function meta(category, node, scope, time) {
-    // return json(node.type); // for easier debugging in the AST explorer
+    // return json(node.type + "-" + time); // for easier debugging in the AST explorer
 
     const scopes = [];
     while (scope) {
@@ -262,7 +272,9 @@ export default function(babel, { ns = "__V__" } = {}) {
       if (!path.node.loc || path.node._done) return;
       path.node._done = true;
 
-      if (t.isCallExpression(path)) {
+      if (t.isAssignmentExpression(path)) {
+        path.node.left = _clone_and_detach(path.node.left);
+      } else if (t.isCallExpression(path)) {
         const contextual = t.isMemberExpression(path.get("callee"));
 
         // Automatically works even if non-contextual,
@@ -305,6 +317,60 @@ export default function(babel, { ns = "__V__" } = {}) {
             meta("expression", path.node, path.scope, "after")
           ])
         );
+      } else if (t.isUpdateExpression(path)) {
+        if (path.node.prefix) {
+          // original:          ++i
+          // w/o intervention:  r2( ++r1(i) )
+          // intervened:        ( i = r1(i) + 1, r2(i) )
+          const arg = path.node.argument; // to be reported
+          const _arg = _clone_and_detach(arg); // non-reported copy
+          path.replaceWith(
+            t.sequenceExpression([
+              t.assignmentExpression(
+                "=",
+                _arg,
+                t.binaryExpression(
+                  path.node.operator[0],
+                  arg,
+                  t.numericLiteral(1)
+                )
+              ),
+              t.callExpression(t.identifier(ns + ".report"), [
+                _arg,
+                meta("expression", path.node, path.scope, "after")
+              ])
+            ])
+          );
+        } else {
+          // original:          i++
+          // w/o intervention:  r2( r1(i)++ )
+          // intervened:        ( TMP = r1(i), i = TMP + 1, r2(TMP) )
+          const tmp = t.memberExpression(
+            t.identifier(ns + ".cache"),
+            t.numericLiteral(++_cache_id),
+            true
+          );
+          const arg = path.node.argument; // to be reported
+          const _arg = _clone_and_detach(arg); // non-reported copy
+          path.replaceWith(
+            t.sequenceExpression([
+              t.assignmentExpression("=", tmp, arg),
+              t.assignmentExpression(
+                "=",
+                _arg,
+                t.binaryExpression(
+                  path.node.operator[0],
+                  tmp,
+                  t.numericLiteral(1)
+                )
+              ),
+              t.callExpression(t.identifier(ns + ".report"), [
+                tmp,
+                meta("expression", path.node, path.scope, "after")
+              ])
+            ])
+          );
+        }
       } else {
         path.replaceWith(
           t.callExpression(t.identifier(ns + ".report"), [
