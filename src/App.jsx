@@ -40,6 +40,11 @@ const PRESETS = {
       i = i + 1;
     }
   `,
+  "Simple map transform": stripIndent`
+    const result = [2, 4, 7].map(n => {
+      return n + 10;
+    });
+  `,
   "Averaging grades with reduce": stripIndent`
     const grades = [4, 8.1, 2.5, 9, 7.8];
 
@@ -50,10 +55,60 @@ const PRESETS = {
 
     const avg = grades.reduce(sum, 0) / grades.length;
   `,
-  "Simple map transform": stripIndent`
-    const result = [2, 4, 7].map(n => {
-      return n + 10;
-    });
+  Fibonacci: stripIndent`
+    const fib = [1, 1];
+
+    while (fib.length < 7) {
+      const [a, b] = fib.slice(-2);
+      fib.push(a + b);
+    }
+  `,
+  "Object spread": stripIndent`
+    const original = {
+      name: "Granny Smith",
+      color: "green"
+    };
+
+    const updated_v1 = {
+      color: "red",
+      ...original
+    };
+
+    const updated_v2 = {
+      ...original,
+      color: "red"
+    };
+  `,
+  "Array spread": stripIndent`
+    const siblings = ["Kelley", "Heleen"];
+
+    const updated_v1 = [...siblings, "Elsie"];
+
+    const updated_v2 = [ "Elsie", ...siblings];
+  `,
+  "Object destructuring": stripIndent`
+    const pikachu = {
+      name: "Pikachu",
+      category: "Mouse Pokémon",
+      info: {
+        weight: 6, // kg
+        height: 0.4 // m
+      },
+      moreInfo: { no: 25, catchRate: 190 }
+    };
+
+    const { category } = pikachu;
+
+    const { name, info: { weight }, moreInfo, bla } = pikachu;
+  `,
+  "Array destructuring": stripIndent`
+    const philosophers = [
+      "Descartes", "Hobbes",
+      "Leibniz", "Kant"
+    ];
+
+    const [first, ...rest] = philosophers;
+    // const [...most, last] = philosophers; // <-- not allowed :(
   `,
   IIFE: stripIndent`
     (function () {
