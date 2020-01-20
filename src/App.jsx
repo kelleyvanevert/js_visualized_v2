@@ -29,14 +29,24 @@ const inspectorTheme = {
 
 const PRESETS = {
   "For-loop": stripIndent`
-    for (let i = 0; i < 5; i = i + 1) {
-      console.log("at iteration", i);
+    for (let i = 0; i < 5; i++) {
+      console.log(i);
     }
+
+    // Alternatively:
+    // for (let i of [0,1,2,3,4]) {
+    //   console.log(i);
+    // }
+
+    // Or:
+    // [0,1,2,3,4].forEach(i => {
+    //   console.log(i);
+    // });
   `,
   "While-loop": stripIndent`
     let i = 0;
     while (i < 5) {
-      console.log("at iteration", i);
+      console.log(i);
       i = i + 1;
     }
   `,
@@ -84,7 +94,7 @@ const PRESETS = {
 
     const updated_v1 = [...siblings, "Elsie"];
 
-    const updated_v2 = [ "Elsie", ...siblings];
+    const updated_v2 = ["Elsie", ...siblings];
   `,
   "Object destructuring": stripIndent`
     const pikachu = {
@@ -114,6 +124,20 @@ const PRESETS = {
     (function () {
       let x = 1;
     }());
+  `,
+  "Update expressions (avoid!)": stripIndent`
+    // These are really just here for testing. Try to avoid :D
+    let i;
+    i = 0; ++i;
+    i = 0; i++;
+    i = 0; ++i + ++i;
+    i = 0; i++ + i++;
+
+    let o = {};
+    o.i = 0; ++o.i;
+    o.i = 0; o.i++;
+    o.i = 0; ++o.i + ++o.i;
+    o.i = 0; o.i++ + o.i++;
   `
 };
 
@@ -124,7 +148,9 @@ function _cacheKey(code, config = {}) {
 export default function App() {
   const [cache, set_cache] = useState({});
 
-  const [code, set_code] = useState(PRESETS["Averaging grades with reduce"]);
+  const [code, set_code] = useState(
+    PRESETS["Averaging grades with reduce"] || ""
+  );
   const [detail, set_detail] = useState(true);
 
   const worker = useReplacableWorker(data => {

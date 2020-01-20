@@ -1,8 +1,27 @@
-const primary = "#4dd4aa";
+import color from "color";
+
+const teal = "#4dd4aa";
+const blue = "#007cff";
+const yellow = "#fbf1a0";
 
 export default {
-  primary,
-  blue: "#007cff",
-  before: { bg: "#fbf1a0", fg: "#d0bf3a" },
-  after: { bg: primary, fg: "#2eb98e" }
+  // basic
+  teal,
+  blue,
+  yellow,
+
+  // derived
+  before: {
+    bg: yellow,
+    fg: color(yellow)
+      .darken(0.4)
+      .desaturate(0.1)
+      .string()
+  },
+  after: {
+    bg: teal,
+    fg: color(teal)
+      .darken(0.2)
+      .string()
+  }
 };
