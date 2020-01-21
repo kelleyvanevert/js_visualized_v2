@@ -99,15 +99,7 @@ export default function App() {
           textareaClassName="Code"
         />
       </div>
-      {step ? (
-        <Step
-          step={step}
-          logs={steps
-            .slice(0, step.num + 1)
-            .map(s => s.logs || [])
-            .flat()}
-        />
-      ) : error ? (
+      {error ? (
         <div className="InfoPanelGroup">
           <div className="InfoPanel">
             <h2 css="color: #c00;">Uh oh!</h2>
@@ -120,7 +112,17 @@ export default function App() {
             </pre>
           </div>
         </div>
-      ) : null}
+      ) : step ? (
+        <Step
+          step={step}
+          logs={steps
+            .slice(0, step.num + 1)
+            .map(s => s.logs || [])
+            .flat()}
+        />
+      ) : (
+        <Step />
+      )}
     </div>
   );
 }

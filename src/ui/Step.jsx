@@ -18,7 +18,7 @@ const inspectorTheme = {
   TREENODE_LINE_HEIGHT: 1.5
 };
 
-export default function Step({ step, logs }) {
+export default function Step({ step = { category: "init" }, logs = [] }) {
   if (step.category === "init") {
     return (
       <div className="InfoPanelGroup">
