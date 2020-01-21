@@ -4,6 +4,8 @@ import { Range, getTrackBackground } from "react-range";
 
 import { IoIosArrowDroprightCircle, IoIosCloseCircle } from "react-icons/io";
 
+import format_dt from "./lib/format_dt";
+
 import Spinner from "./Spinner";
 import theme from "./theme";
 
@@ -12,7 +14,8 @@ export default function StepSlider({
   value,
   onValueChange,
   error,
-  loading
+  loading,
+  step
 }) {
   max = Math.max(1, max);
   value = Math.max(0, Math.min(value, max));
@@ -65,10 +68,6 @@ export default function StepSlider({
         onChange={([value]) => {
           focusNow();
           onValueChange(value);
-        }}
-        // onFinalChange={([value]) => onValueChange(Math.round(value))}
-        onMove={() => {
-          console.log("onMove");
         }}
         renderTrack={({ props, children }) => {
           return (
@@ -149,11 +148,8 @@ export default function StepSlider({
         }}
         renderThumb={({ props }) => {
           return (
-            <button
+            <div
               {...props}
-              id="StepSliderThumb"
-              autoFocus
-              ref={btn}
               style={{ ...props.style, zIndex: 30 }}
               onKeyDown={e => {
                 if (e.key === "ArrowLeft") {
@@ -162,52 +158,76 @@ export default function StepSlider({
                   onValueChange(Math.round(value + 1));
                 }
               }}
-              css={`
-                display: flex;
-                margin: 0;
-                padding: 0;
-                height: 44px;
-                width: 44px;
-                box-sizing: border-box;
+            >
+              <button
+                id="StepSliderThumb"
+                autoFocus
+                ref={btn}
+                css={`
+                  display: flex;
+                  margin: 0;
+                  padding: 0;
+                  height: 44px;
+                  width: 44px;
+                  box-sizing: border-box;
 
-                position: relative;
+                  position: relative;
 
-                outline: none;
-                border: 2px solid transparent;
+                  outline: none;
+                  cursor: pointer;
+                  border: 2px solid transparent;
 
-                border-radius: 4px;
-                background-color: #fff;
-                justify-content: center;
-                align-items: center;
-                box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.3);
+                  border-radius: 4px;
+                  background-color: #fff;
+                  justify-content: center;
+                  align-items: center;
+                  box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.3);
 
-                &:focus {
-                  color: ${theme.blue};
-                  border-color: ${theme.blue};
-                }
+                  &:focus {
+                    color: ${theme.blue};
+                    border-color: ${theme.blue};
+                  }
 
-                .C {
-                  height: 16px;
-                  width: 6px;
-                  background: #ccc;
-                }
+                  .C {
+                    height: 16px;
+                    width: 6px;
+                    background: #ccc;
+                  }
 
-                font-size: 0.9rem;
-                font-family: Menlo, Consolas, monospace;
-                font-weight: bold;
+                  font-size: 0.9rem;
+                  font-family: Menlo, Consolas, monospace;
+                  font-weight: bold;
 
-                ${thumb.error &&
-                  `
+                  ${thumb.error &&
+                    `
                     &,
                     &:focus {
                       color: #c00;
                       border-color: #c00;
                     }
                   `}
-              `}
-            >
-              {thumb.content}
-            </button>
+                `}
+              >
+                {thumb.content}
+              </button>
+              <div css="position: relative;">
+                {step && "dt" in step && (
+                  <div
+                    css={`
+                      position: absolute;
+                      top: 4px;
+                      left: -1rem;
+                      right: -1rem;
+                      text-align: center;
+                      font-size: 14px;
+                      white-space: nowrap;
+                    `}
+                  >
+                    {format_dt(step.dt, "@ ")}
+                  </div>
+                )}
+              </div>
+            </div>
           );
         }}
       />

@@ -5,6 +5,8 @@ import { ObjectInspector, chromeLight } from "react-inspector";
 import stripIndent from "common-tags/lib/stripIndent";
 
 import { undescribe } from "./lib/describe";
+import add_waiting_time_steps from "./lib/add_waiting_time_steps";
+import format_dt from "./lib/format_dt";
 
 import StepSlider from "./StepSlider";
 import Highlight from "./Highlight";
@@ -120,6 +122,18 @@ const PRESETS = {
     const [first, ...rest] = philosophers;
     // const [...most, last] = philosophers; // <-- not allowed :(
   `,
+  setTimeout: stripIndent`
+    setTimeout(() => {
+      console.log("hello from the future!");
+    }, 100);
+  `,
+  "Promise / fetch": stripIndent`
+    fetch("https://xkcd.now.sh/?comic=303")
+      .then(res => res.json())
+      .then(data => {
+        console.log(data);
+      })
+  `,
   IIFE: stripIndent`
     (function () {
       let x = 1;
@@ -141,38 +155,33 @@ const PRESETS = {
   `
 };
 
-function _cacheKey(code, config = {}) {
-  return (config.detail ? "Y" : "N") + ";" + code;
-}
-
 export default function App() {
   const [cache, set_cache] = useState({});
 
   const [code, set_code] = useState(
-    PRESETS["Averaging grades with reduce"] || ""
+    PRESETS["Promise / fetch"]
+    // PRESETS["Averaging grades with reduce"] || ""
   );
-  const [detail, set_detail] = useState(true);
 
   const worker = useReplacableWorker(data => {
     if (data.steps) {
-      data.steps = undescribe(data.steps);
+      data.steps = add_waiting_time_steps(undescribe(data.steps));
     }
     set_cache(cache => {
       return {
         ...cache,
-        [_cacheKey(data.code, data.config)]: data
+        [data.code]: data
       };
     });
   });
 
   useEffect(() => {
-    if (worker && !cache[_cacheKey(code, { detail })]) {
-      worker.postMessage({ code, config: { detail } });
+    if (worker && !cache[code]) {
+      worker.postMessage({ code });
     }
-  }, [code, detail, cache, worker]);
+  }, [code, cache, worker]);
 
-  const cacheKey = _cacheKey(code, { detail });
-  const { steps, error, loading } = cache[cacheKey] || { loading: true };
+  const { steps, error, loading } = cache[code] || { loading: true };
 
   const delayed = useDelayed(
     useMemo(() => {
@@ -279,6 +288,7 @@ export default function App() {
         </Menu>
         <StepSlider
           max={_lastSteps.length - 1}
+          step={step}
           value={_at}
           onValueChange={set_at}
           loading={loading}
@@ -300,122 +310,141 @@ export default function App() {
           textareaClassName="Code"
         />
       </div>
-      {step && at > 0 && (
-        <div className="InfoPanelGroup">
-          <div className="InfoPanel">
-            <h2>Step info</h2>
-            {step.time && step.category && step.type && (
-              <div>
-                <p>
-                  <strong style={{ color: theme[step.time].fg }}>
-                    {step.time === "before"
-                      ? `about to ${
-                          step.category === "expression"
-                            ? "evaluate"
-                            : "execute"
-                        }`
-                      : step.type === "statement"
-                      ? "executed"
-                      : "evaluated"}
-                  </strong>{" "}
-                  {step.category}
-                  <br />
-                  <span css="margin-left: 10px;">
-                    (of type <strong>{step.type}</strong>)
-                  </span>
-                </p>
-                {step.time === "after" && step.category === "expression" && (
-                  <p>&hellip;to the value:</p>
-                )}
-              </div>
-            )}
-            {step.time === "after" && step.category === "expression" && (
-              <ObjectInspector
-                theme={{
-                  ...inspectorTheme,
-                  BASE_FONT_SIZE: "20px",
-                  TREENODE_FONT_SIZE: "20px"
-                }}
-                data={step.value}
-              />
-            )}
+      {step &&
+        at > 0 &&
+        ("wait" in step ? (
+          <div
+            css={`
+              border: 3px solid #eee;
+              border-radius: 8px;
+              background: #f5f5f5;
+              color: #555;
+              text-align: center;
+              padding: 3rem;
+              font-size: 1.25rem;
+            `}
+          >
+            &hellip;not doing anything for ± {format_dt(step.wait)}
           </div>
-          <div className="InfoPanel">
-            <h2>Variables in scope</h2>
-            {step.scopes &&
-              step.scopes.slice().reduce((childrenScopes, scope, j) => {
-                const bindings = Object.entries(scope);
-                return (
-                  <div
-                    css={`
-                      margin-top: 10px;
-                      border: 2px solid ${j === 0 ? "black" : "#ccc"};
-                      ${j === 0 && "box-shadow: 0 2px 6px rgba(0, 0, 0, .2);"}
-                      padding: 10px;
-                      border-radius: 4px;
-                    `}
-                  >
-                    {bindings.length === 0 && (
-                      <p css="margin: 0;">
-                        <em>(no variables in this scope)</em>
-                      </p>
-                    )}
-                    {bindings.map(([variable, [value]], i) => {
-                      return (
-                        <div
-                          key={i}
-                          style={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            paddingBottom: i === bindings.length - 1 ? 0 : 10
-                          }}
-                        >
-                          <ObjectInspector
-                            theme={inspectorTheme}
-                            name={variable}
-                            data={value}
-                          />
-                        </div>
-                      );
-                    })}
-                    {childrenScopes}
-                  </div>
-                );
-              }, <div />)}
+        ) : (
+          <div className="InfoPanelGroup">
+            <div className="InfoPanel">
+              <h2>Step info</h2>
+              {step.time && step.category && step.type && (
+                <div>
+                  <p>
+                    <strong style={{ color: theme[step.time].fg }}>
+                      {step.time === "before"
+                        ? `about to ${
+                            step.category === "expression"
+                              ? "evaluate"
+                              : "execute"
+                          }`
+                        : step.type === "statement"
+                        ? "executed"
+                        : "evaluated"}
+                    </strong>{" "}
+                    {step.category}
+                    <br />
+                    <span css="margin-left: 10px;">
+                      (of type <strong>{step.type}</strong>)
+                    </span>
+                  </p>
+                  {step.time === "after" && step.category === "expression" && (
+                    <p>&hellip;to the value:</p>
+                  )}
+                </div>
+              )}
+              {step.time === "after" && step.category === "expression" && (
+                <ObjectInspector
+                  theme={{
+                    ...inspectorTheme,
+                    BASE_FONT_SIZE: "20px",
+                    TREENODE_FONT_SIZE: "20px"
+                  }}
+                  data={step.value}
+                />
+              )}
+            </div>
+            <div className="InfoPanel">
+              <h2>Variables in scope</h2>
+              {step.scopes &&
+                step.scopes.slice().reduce((childrenScopes, scope, j) => {
+                  const bindings = Object.entries(scope);
+                  return (
+                    <div
+                      css={`
+                        margin-top: 10px;
+                        border: 2px solid ${j === 0 ? "black" : "#ccc"};
+                        ${j === 0 && "box-shadow: 0 2px 6px rgba(0, 0, 0, .2);"}
+                        padding: 10px;
+                        border-radius: 4px;
+                      `}
+                    >
+                      {bindings.length === 0 && (
+                        <p css="margin: 0;">
+                          <em>(no variables in this scope)</em>
+                        </p>
+                      )}
+                      {bindings.map(([variable, [value]], i) => {
+                        return (
+                          <div
+                            key={i}
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              paddingBottom: i === bindings.length - 1 ? 0 : 10
+                            }}
+                          >
+                            <ObjectInspector
+                              theme={inspectorTheme}
+                              name={variable}
+                              data={value}
+                            />
+                          </div>
+                        );
+                      })}
+                      {childrenScopes}
+                    </div>
+                  );
+                }, <div />)}
+            </div>
+            <div className="InfoPanel">
+              <h2>Console logs</h2>
+              {steps
+                .slice(0, step.num + 1)
+                .map(s => s.logs || [])
+                .flat()
+                .map((items, i) => {
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        paddingBottom: 10,
+                        ...(i !== 0 && {
+                          borderTop: "2px solid #ccc",
+                          paddingTop: 10
+                        })
+                      }}
+                    >
+                      {items.map((item, i) => {
+                        return (
+                          <div key={i} css="margin-right: 16px;">
+                            <ObjectInspector
+                              theme={inspectorTheme}
+                              data={item}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+            </div>
           </div>
-          <div className="InfoPanel">
-            <h2>Console logs</h2>
-            {steps
-              .slice(0, step.num + 1)
-              .map(s => s.logs || [])
-              .flat()
-              .map((items, i) => {
-                return (
-                  <div
-                    key={i}
-                    style={{
-                      display: "flex",
-                      flexWrap: "wrap",
-                      paddingBottom: 10,
-                      ...(i !== 0 && {
-                        borderTop: "2px solid #ccc",
-                        paddingTop: 10
-                      })
-                    }}
-                  >
-                    {items.map((item, i) => {
-                      return (
-                        <div key={i} css="margin-right: 16px;">
-                          <ObjectInspector theme={inspectorTheme} data={item} />
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-          </div>
-        </div>
-      )}
+        ))}
       {at < 0.1 && !delayed.error && (
         <div className="InfoPanelGroup">
           <div className="InfoPanel">

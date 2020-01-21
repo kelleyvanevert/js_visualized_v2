@@ -16,10 +16,17 @@ self.onmessage = ({ data: { code, config = {} } }) => {
   const ns = (config.ns = config.ns || "__V__");
   try {
     const transpiled = transpile(code, config);
-    let steps = eval(`
+    let getSteps = eval(`
       (((undefined) => {
+        const console = new (class console {
+          log(...args) {
+            ${ns}._logs.push(${ns}.cp(args));
+          }
+        });
         const ${ns} = {
+          _t0: Date.now(),
           _steps: [{}],
+          _updated: false,
           _logs: [],
           _tmp: {}
         };
@@ -29,53 +36,67 @@ self.onmessage = ({ data: { code, config = {} } }) => {
           } else if (Array.isArray(data)) {
             return data.slice(0).map(${ns}.cp);
           } else if (typeof data === "function") {
-            return data; // ?
+            // don't clone functions
+            return data;
+          } else if (typeof data === "object" && "then" in data && "catch" in data) {
+            // don't clone promises
+            return data;
           } else {
-            return Object.fromEntries(Object.entries(data).map(${ns}.cp));
+            const ownProps = Object.fromEntries(Object.entries(data).map(${ns}.cp));
+            ownProps.__cname__ = data.constructor.name;
+            return ownProps;
           }
         };
-        ${ns}.__console_log = console.log;
-        console.log = (...args) => ${ns}._logs.push(${ns}.cp(args));
         ${ns}.cache = {};
         ${ns}.report = function(value, meta) {
+          meta.dt = Date.now() - ${ns}._t0;
           meta.num = ${ns}._steps.push(meta) - 1;
           meta.value = ${ns}.cp(value);
           meta.logs = ${ns}._logs;
           ${ns}._logs = [];
+          ${ns}._updated = true;
           return value;
         };
         ${ns}.app = function () {
           ${transpiled};
         };
         ${ns}.app();
-        console.log = ${ns}.__console_log;
-        return ${ns}._steps;
+        return () => {
+          const res = [${ns}._steps, ${ns}._updated];
+          ${ns}._updated = false;
+          return res;
+        };
       })())
     `);
-
-    steps = steps.filter(step => {
-      if (!config.detail) {
-        if (
-          step.category === "expression" ||
-          (step.category === "statement" && step.time === "before")
-        ) {
-          return false;
-        }
-      }
-      return true;
-    });
 
     // To avoid some kind of permission problem,
     //  manually serialize then deserialize once
     console.log("  OK");
-    self.postMessage({
-      code,
-      transpiled,
-      config,
-      steps: describe(steps)
-    });
+    let TIMEOUT = 500;
+    let steps,
+      updated,
+      run = 0;
+
+    function messageUpdates() {
+      // stop polling after 1 minute
+      if (++run * TIMEOUT > 60000) {
+        clearInterval(interval);
+      }
+
+      [steps, updated] = getSteps();
+      if (updated) {
+        self.postMessage({
+          code,
+          transpiled,
+          config,
+          steps: describe(steps)
+        });
+      }
+    }
+    let interval = setInterval(messageUpdates, TIMEOUT);
+    messageUpdates();
   } catch (error) {
-    console.log("  ERR");
+    console.error("  ERR", error);
     self.postMessage({ code, config, error });
   }
 };

@@ -13,6 +13,18 @@ export function describe(data) {
     return { type: "function" };
   } else if (Array.isArray(data)) {
     return { type: "array", data: data.map(describe) };
+  } else if ("then" in data && "catch" in data) {
+    let description = { type: "promise", state: "pending" };
+    data
+      .then(value => {
+        description.state = "resolved";
+        description.value = value;
+      })
+      .catch(reason => {
+        description.state = "rejected";
+        description.reason = reason;
+      });
+    return description;
   } else {
     return {
       type: "object",
@@ -22,6 +34,8 @@ export function describe(data) {
     };
   }
 }
+
+const fake_constructors = {};
 
 export function undescribe(node) {
   switch (node.type) {
@@ -37,9 +51,27 @@ export function undescribe(node) {
     }
     case "array":
       return node.data.map(undescribe);
-    case "object":
-      return Object.fromEntries(
+    case "promise": {
+      if (node.state === "resolved") {
+        return Promise.resolve(node.value);
+      } else if (node.state === "rejected") {
+        return Promise.reject(node.reason);
+      } else {
+        return new Promise(() => {});
+      }
+    }
+    case "object": {
+      const { __cname__, ...obj } = Object.fromEntries(
         node.entries.map(([k, v]) => [k, undescribe(v)])
       );
+      if (__cname__ && __cname__ !== "Object") {
+        const fc = (fake_constructors[__cname__] =
+          fake_constructors[__cname__] ||
+          eval(`function ${__cname__}(){}; ${__cname__}`));
+
+        return Object.assign(new fc(), obj);
+      }
+      return obj;
+    }
   }
 }
