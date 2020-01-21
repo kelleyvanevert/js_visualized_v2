@@ -25,7 +25,7 @@ self.onmessage = ({ data: { code, config = {} } }) => {
         });
         const ${ns} = {
           _t0: Date.now(),
-          _steps: [{}],
+          _steps: [ { category: "init" } ],
           _updated: false,
           _logs: [],
           _tmp: {}

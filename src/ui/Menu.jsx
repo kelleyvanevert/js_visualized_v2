@@ -1,13 +1,20 @@
 import "styled-components/macro";
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
+import { useClickAway } from "react-use";
 
-import OutsideClickDetector from "./OutsideClickDetector";
+import theme from "./theme";
 
-export default function Menu({ isOpen, onOpenChange, children, ...props }) {
+export default function Menu({ items, onSelect, ...props }) {
+  const [open, set_open] = useState(false);
+  const close = () => set_open(false);
+
+  const ref = useRef(null);
+  useClickAway(ref, close);
+
   return (
-    <OutsideClickDetector {...props} onOutsideClick={() => onOpenChange(false)}>
+    <div {...props} ref={ref}>
       <button
-        onClick={() => onOpenChange(!isOpen)}
+        onClick={() => set_open(open => !open)}
         css={`
           display: flex;
           flex-direction: column;
@@ -55,33 +62,33 @@ export default function Menu({ isOpen, onOpenChange, children, ...props }) {
         <span className="center">
           <span
             style={{
-              transform: isOpen
+              transform: open
                 ? "translate(-6px, -6px) rotate(+45deg)"
                 : "translate(-6px, -8px)"
             }}
           />
           <span
             style={{
-              transform: isOpen
+              transform: open
                 ? "translate(+6px, -6px) rotate(-45deg)"
                 : "translate(+6px, -8px)"
             }}
           />
           <span
             style={{
-              transform: isOpen ? "scale(0, 1)" : "scale(1.6, 1)"
+              transform: open ? "scale(0, 1)" : "scale(1.6, 1)"
             }}
           />
           <span
             style={{
-              transform: isOpen
+              transform: open
                 ? "translate(-6px, +6px) rotate(-45deg)"
                 : "translate(-6px, +8px)"
             }}
           />
           <span
             style={{
-              transform: isOpen
+              transform: open
                 ? "translate(+6px, +6px) rotate(+45deg)"
                 : "translate(+6px, +8px)"
             }}
@@ -93,7 +100,7 @@ export default function Menu({ isOpen, onOpenChange, children, ...props }) {
           position: relative;
         `}
       >
-        {isOpen && (
+        {open && (
           <div
             css={`
               position: absolute;
@@ -120,10 +127,70 @@ export default function Menu({ isOpen, onOpenChange, children, ...props }) {
               }
             `}
           >
-            {children}
+            <div css="padding: 0.6rem 0;">
+              <ul
+                css={`
+                  margin: 0;
+                  padding: 0;
+
+                  li {
+                    display: block;
+                    margin: 0;
+                    padding: 0;
+                  }
+
+                  button {
+                    display: block;
+                    box-sizing: border-box;
+                    width: 100%;
+                    border: 2px solid transparent;
+                    background: none;
+                    margin: 0;
+                    padding: 0.3rem 1rem;
+                    white-space: nowrap;
+
+                    text-align: left;
+                    font-family: "Work Sans", sans-serif;
+                    font-size: 0.9rem;
+
+                    cursor: pointer;
+                    outline: none;
+
+                    &:hover,
+                    &:focus {
+                      background: #eee;
+                    }
+                    &:active {
+                      background: ${theme.blue};
+                      color: white;
+                    }
+                  }
+                `}
+              >
+                {items.map(item => {
+                  return (
+                    <li key={item.key}>
+                      <button
+                        css={
+                          item.active
+                            ? `
+                            background: ${theme.blue} !important;
+                            color: white !important;
+                            `
+                            : ""
+                        }
+                        onClick={() => onSelect(item, close)}
+                      >
+                        {item.title}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           </div>
         )}
       </div>
-    </OutsideClickDetector>
+    </div>
   );
 }

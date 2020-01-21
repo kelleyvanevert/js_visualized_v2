@@ -1,10 +1,9 @@
 import "styled-components/macro";
 import React, { useRef, useMemo, useEffect, useState } from "react";
 import { Range, getTrackBackground } from "react-range";
-
 import { IoIosArrowDroprightCircle, IoIosCloseCircle } from "react-icons/io";
 
-import format_dt from "./lib/format_dt";
+import format_dt from "../lib/format_dt";
 
 import Spinner from "./Spinner";
 import theme from "./theme";
