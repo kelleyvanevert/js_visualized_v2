@@ -105,7 +105,7 @@ export default function Step({ step = { category: "init" }, logs = [] }) {
                       <em>(no variables in this scope)</em>
                     </p>
                   )}
-                  {bindings.map(([variable, [value]], i) => {
+                  {bindings.map(([variable, value], i) => {
                     return (
                       <div
                         key={i}

@@ -16,11 +16,12 @@ self.onmessage = ({ data: { code, config = {} } }) => {
   const ns = (config.ns = config.ns || "__V__");
   try {
     const transpiled = transpile(code, config);
+    self.describe = describe;
     let getSteps = eval(`
       (((undefined) => {
         const console = new (class console {
           log(...args) {
-            ${ns}._logs.push(${ns}.cp(args));
+            ${ns}._logs.push(args.map(item => ${ns}.describe(item)));
           }
         });
         const ${ns} = {
@@ -30,28 +31,12 @@ self.onmessage = ({ data: { code, config = {} } }) => {
           _logs: [],
           _tmp: {}
         };
-        ${ns}.cp = data => {
-          if (typeof data === "boolean" || typeof data === "string" || typeof data === "number" || data === null || data === void 0) {
-            return data;
-          } else if (Array.isArray(data)) {
-            return data.slice(0).map(${ns}.cp);
-          } else if (typeof data === "function") {
-            // don't clone functions
-            return data;
-          } else if (typeof data === "object" && "then" in data && "catch" in data) {
-            // don't clone promises
-            return data;
-          } else {
-            const ownProps = Object.fromEntries(Object.entries(data).map(${ns}.cp));
-            ownProps.__cname__ = data.constructor.name;
-            return ownProps;
-          }
-        };
+        ${ns}.describe = self.describe;
         ${ns}.cache = {};
         ${ns}.report = function(value, meta) {
           meta.dt = Date.now() - ${ns}._t0;
           meta.num = ${ns}._steps.push(meta) - 1;
-          meta.value = ${ns}.cp(value);
+          meta.value = ${ns}.describe(value);
           meta.logs = ${ns}._logs;
           ${ns}._logs = [];
           ${ns}._updated = true;
@@ -89,7 +74,7 @@ self.onmessage = ({ data: { code, config = {} } }) => {
           code,
           transpiled,
           config,
-          steps: describe(steps)
+          steps: JSON.stringify(steps)
         });
       }
     }

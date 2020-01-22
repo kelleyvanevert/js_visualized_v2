@@ -23,9 +23,25 @@ export default function App() {
   const [cache, set_cache] = useState({});
 
   const worker = useReplacableWorker(data => {
-    if (data.steps) {
-      data.steps = add_waiting_time_steps(undescribe(data.steps));
-    }
+    data.steps = JSON.parse(data.steps);
+    data.steps.forEach(step => {
+      if ("value" in step) {
+        step.value = undescribe(step.value);
+      }
+      if ("scopes" in step) {
+        step.scopes.forEach(scope => {
+          Object.keys(scope).forEach(key => {
+            scope[key] = undescribe(scope[key]);
+          });
+        });
+      }
+      if ("logs" in step) {
+        step.logs = step.logs.map(line => {
+          return line.map(item => undescribe(item));
+        });
+      }
+    });
+    add_waiting_time_steps(data.steps);
     set_cache(cache => {
       return {
         ...cache,

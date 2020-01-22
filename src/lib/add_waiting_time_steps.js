@@ -20,5 +20,4 @@ export default function add_waiting_time_steps(steps) {
       });
     }
   }
-  return steps;
 }

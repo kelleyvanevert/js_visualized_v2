@@ -1,77 +1,85 @@
-export function describe(data) {
-  if (typeof data === "string") {
-    return { type: "string", data };
-  } else if (typeof data === "boolean") {
-    return { type: "boolean", data };
-  } else if (typeof data === "number") {
-    return { type: "number", data };
-  } else if (data === null) {
-    return { type: "null", data };
-  } else if (data === void 0) {
-    return { type: "undefined", data };
-  } else if (typeof data === "function") {
-    return { type: "function" };
-  } else if (Array.isArray(data)) {
-    return { type: "array", data: data.map(describe) };
-  } else if ("then" in data && "catch" in data) {
-    let description = { type: "promise", state: "pending" };
-    data
-      .then(value => {
-        description.state = "resolved";
-        description.value = value;
-      })
-      .catch(reason => {
-        description.state = "rejected";
-        description.reason = reason;
-      });
-    return description;
+// Usage:
+// description = [node, heap] = describe(value)
+export function describe(value, heap = [], map = new Map()) {
+  if (typeof value === "string") {
+    return [{ category: "primitive", type: "string", value }, heap];
+  } else if (typeof value === "boolean") {
+    return [{ category: "primitive", type: "boolean", value }, heap];
+  } else if (typeof value === "number") {
+    return [{ category: "primitive", type: "number", value }, heap];
+  } else if (value === null) {
+    return [{ category: "primitive", type: "null", value }, heap];
+  } else if (value === void 0) {
+    return [{ category: "primitive", type: "undefined", value }, heap];
+  } else if (map.has(value)) {
+    return [{ category: "compound", at: map.get(value) }, heap];
   } else {
-    return {
-      type: "object",
-      entries: Object.entries(data).map(([k, v]) => {
-        return [k, describe(v)];
-      })
-    };
+    const at = heap.length;
+    map.set(value, at);
+
+    const obj = { type: "object", entries: [] };
+    heap.push(obj);
+
+    if (typeof value === "function") {
+      obj.type = "function";
+    } else if ("then" in value && "catch" in value) {
+      obj.type = "promise";
+    } else if (Array.isArray(value)) {
+      obj.type = "array";
+      obj.length = value.length;
+    } else {
+      obj.cname = value.constructor.name;
+    }
+
+    Object.entries(value).forEach(([key, v]) => {
+      const [described] = describe(v, heap, map);
+      obj.entries.push([key, described]);
+    });
+
+    return [{ category: "compound", at }, heap];
   }
 }
 
-const fake_constructors = {};
-
-export function undescribe(node) {
-  switch (node.type) {
-    case "string":
-    case "boolean":
-    case "number":
-    case "null":
-      return node.data;
-    case "undefined":
-      return undefined;
-    case "function": {
-      return function() {};
-    }
-    case "array":
-      return node.data.map(undescribe);
-    case "promise": {
-      if (node.state === "resolved") {
-        return Promise.resolve(node.value);
-      } else if (node.state === "rejected") {
-        return Promise.reject(node.reason);
-      } else {
-        return new Promise(() => {});
-      }
-    }
-    case "object": {
-      const { __cname__, ...obj } = Object.fromEntries(
-        node.entries.map(([k, v]) => [k, undescribe(v)])
-      );
-      if (__cname__ && __cname__ !== "Object") {
-        const fc = (fake_constructors[__cname__] =
-          fake_constructors[__cname__] ||
-          eval(`function ${__cname__}(){}; ${__cname__}`));
-
-        return Object.assign(new fc(), obj);
-      }
-      return obj;
-    }
+// Usage:
+// value = undescribe(description = [node, heap])
+const FAKE_CONSTRUCTORS = {};
+export function undescribe([node, heap], revived = []) {
+  if (node.category === "primitive") {
+    return node.value;
+  } else if (revived[node.at]) {
+    return revived[node.at];
   }
+
+  const obj = heap[node.at];
+  let value = {};
+
+  if (obj.type === "function") {
+    value = function() {};
+  } else if (obj.type === "promise") {
+    value = new Promise(() => {});
+  } else if (obj.type === "array") {
+    value = [];
+    value.length = obj.length;
+  } else if (obj.cname) {
+    value = new (FAKE_CONSTRUCTORS[obj.cname] =
+      FAKE_CONSTRUCTORS[obj.cname] ||
+      eval(`function ${obj.cname}(){}; ${obj.cname}`))();
+  }
+
+  revived[node.at] = value;
+
+  obj.entries.forEach(([key, node]) => {
+    value[key] = undescribe([node, heap], revived);
+  });
+
+  return value;
 }
+
+// const a = {};
+// const b = { a };
+// a.b = b;
+
+// const d = describe([a]);
+
+// // console.log(JSON.stringify(d, null, 2));
+// console.log(undescribe(d));

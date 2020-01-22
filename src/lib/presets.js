@@ -110,6 +110,11 @@ export default {
       let x = 1;
     }());
   `,
+  "Circular data": stripIndent`
+    const a = {};
+    const b = { a };
+    a.b = b;
+  `,
   "Update expressions (avoid!)": stripIndent`
     // These are really just here for testing. Try to avoid :D
     let i;

@@ -121,8 +121,8 @@ export default function(babel, { ns = "__V__" } = {}) {
             ids.map(id => [
               id,
               {
-                $ast: t.arrayExpression([
-                  t.callExpression(t.identifier(ns + ".cp"), [t.identifier(id)])
+                $ast: t.callExpression(t.identifier(ns + ".describe"), [
+                  t.identifier(id)
                 ])
               }
             ])
