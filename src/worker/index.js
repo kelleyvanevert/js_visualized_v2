@@ -5,14 +5,14 @@ import transpilerPlugin from "./transpile_plugin";
 
 const id = Math.floor(Math.random() * 1000);
 
-console.log("hello from worker");
+console.info("hello from worker");
 
 setInterval(() => {
   self.postMessage({ alive: id });
 }, 100);
 
 self.onmessage = ({ data: { code, config = {} } }) => {
-  console.log("compiling...");
+  console.info("compiling...");
   const ns = (config.ns = config.ns || "__V__");
   try {
     const transpiled = transpile(code, config);
@@ -56,7 +56,7 @@ self.onmessage = ({ data: { code, config = {} } }) => {
 
     // To avoid some kind of permission problem,
     //  manually serialize then deserialize once
-    console.log("  OK");
+    console.info("  OK");
     let TIMEOUT = 500;
     let steps,
       updated,
