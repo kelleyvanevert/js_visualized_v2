@@ -12,7 +12,10 @@ export function describe(value, heap = [], map = new Map()) {
   } else if (value === void 0) {
     return [{ category: "primitive", type: "undefined", value }, heap];
   } else if (typeof value === "symbol") {
-    return [{ category: "primitive", type: "symbol", value }, heap];
+    return [
+      { category: "primitive", type: "symbol", str: value.toString() },
+      heap
+    ];
   } else if (map.has(value)) {
     return [{ category: "compound", at: map.get(value) }, heap];
   } else {
@@ -47,7 +50,12 @@ export function describe(value, heap = [], map = new Map()) {
 const FAKE_CONSTRUCTORS = {};
 export function undescribe([node, heap], revived = []) {
   if (node.category === "primitive") {
-    return node.value;
+    if (node.type === "symbol") {
+      const m = (node.str || "").match(/^Symbol\((.*)\)$/);
+      return Symbol(m ? m[1] : undefined);
+    } else {
+      return node.value;
+    }
   } else if (revived[node.at]) {
     return revived[node.at];
   }
