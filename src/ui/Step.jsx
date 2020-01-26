@@ -50,7 +50,7 @@ export default function Step({ step = { category: "init" }, logs = [] }) {
     return (
       <div className="InfoPanelGroup">
         <div className="InfoPanel">
-          <h2>Step info</h2>
+          <h2>Step</h2>
           {step.time && step.category && step.type && (
             <div>
               <p>
@@ -86,13 +86,14 @@ export default function Step({ step = { category: "init" }, logs = [] }) {
           )}
         </div>
         <div className="InfoPanel">
-          <h2>Variables in scope</h2>
+          <h2>Scope</h2>
           {step.scopes &&
             step.scopes.slice().reduce((childrenScopes, scope, j) => {
               const bindings = Object.entries(scope);
               return (
                 <div
                   css={`
+                    display: inline-block;
                     margin-top: 10px;
                     border: 2px solid ${j === 0 ? "black" : "#ccc"};
                     ${j === 0 && "box-shadow: 0 2px 6px rgba(0, 0, 0, .2);"}
@@ -129,7 +130,7 @@ export default function Step({ step = { category: "init" }, logs = [] }) {
             }, <div />)}
         </div>
         <div className="InfoPanel">
-          <h2>Console logs</h2>
+          <h2>Console</h2>
           {logs.map((items, i) => {
             return (
               <div
