@@ -159,36 +159,6 @@ export default function(babel, { ns = "__V__" } = {}) {
     );
   }
 
-  function visit_FunctionExpression(path) {
-    if (!path.node.loc || path.node._done) return;
-    path.node._done = true;
-
-    path.replaceWith(
-      REPORT(
-        t.callExpression(
-          t.memberExpression(
-            t.functionExpression(
-              null,
-              path.node.params,
-              t.isBlockStatement(path.node.body)
-                ? path.node.body
-                : t.blockStatement([t.returnStatement(path.node.body)])
-            ),
-            t.identifier("bind")
-          ),
-          [t.thisExpression()]
-        ),
-        path.node,
-        // No idea why, but for some
-        //  reason the scope of a Function node
-        //  is not the surrounding scope of it as an expression,
-        //  but rather it's own scope. Not what we're looking for!
-        path.parentPath.scope,
-        "after"
-      )
-    );
-  }
-
   const visitor = {
     // This is an ugly trick to get the scope data "out" easily
     // If we leave the variables as let and const, then we run into non-initialized errors
@@ -296,8 +266,52 @@ export default function(babel, { ns = "__V__" } = {}) {
         );
       }
     },
-    FunctionExpression: visit_FunctionExpression,
-    ArrowFunctionExpression: visit_FunctionExpression,
+    ArrowFunctionExpression(path) {
+      if (!path.node.loc || path.node._done) return;
+      path.node._done = true;
+
+      path.replaceWith(
+        REPORT(
+          t.callExpression(
+            t.memberExpression(
+              t.functionExpression(
+                null,
+                path.node.params,
+                t.isBlockStatement(path.node.body)
+                  ? path.node.body
+                  : t.blockStatement([t.returnStatement(path.node.body)])
+              ),
+              t.identifier("bind")
+            ),
+            [t.thisExpression()]
+          ),
+          path.node,
+          // No idea why, but for some
+          //  reason the scope of a Function node
+          //  is not the surrounding scope of it as an expression,
+          //  but rather it's own scope. Not what we're looking for!
+          path.parentPath.scope,
+          "after"
+        )
+      );
+    },
+    FunctionExpression(path) {
+      if (!path.node.loc || path.node._done) return;
+      path.node._done = true;
+
+      path.replaceWith(
+        REPORT(
+          path.node,
+          path.node,
+          // No idea why, but for some
+          //  reason the scope of a Function node
+          //  is not the surrounding scope of it as an expression,
+          //  but rather it's own scope. Not what we're looking for!
+          path.parentPath.scope,
+          "after"
+        )
+      );
+    },
     Expression(path) {
       if (!path.node.loc || path.node._done) return;
       path.node._done = true;

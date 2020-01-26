@@ -11,6 +11,8 @@ export function describe(value, heap = [], map = new Map()) {
     return [{ category: "primitive", type: "null", value }, heap];
   } else if (value === void 0) {
     return [{ category: "primitive", type: "undefined", value }, heap];
+  } else if (typeof value === "symbol") {
+    return [{ category: "primitive", type: "symbol", value }, heap];
   } else if (map.has(value)) {
     return [{ category: "compound", at: map.get(value) }, heap];
   } else {
@@ -54,7 +56,7 @@ export function undescribe([node, heap], revived = []) {
   let value = {};
 
   if (obj.type === "function") {
-    value = function() {};
+    value = (() => () => {})(); // To avoid the transpiler naming it `f value()`
   } else if (obj.type === "promise") {
     value = new Promise(() => {});
   } else if (obj.type === "array") {

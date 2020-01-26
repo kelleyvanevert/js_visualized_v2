@@ -20,7 +20,7 @@ export default function useReplacableWorker(onMessage) {
   };
 
   ref.current.worker.onerror = error => {
-    console.info("actual error in worker", error);
+    console.debug("actual error in worker", error);
   };
 
   return ref.current.worker;
@@ -33,13 +33,13 @@ function setupWatchDog(info) {
     id = setTimeout(() => {
       info.dead = true;
       info.worker.terminate();
-      console.info("WORKER DIED :|");
+      console.debug("WORKER DIED :|");
     }, 600);
   }
 
   info.worker.addEventListener("message", ({ data }) => {
     if ("alive" in data) {
-      console.info("still alive", data.alive);
+      console.debug("still alive", data.alive);
       clearInterval(id);
       setTimer();
     }

@@ -93,6 +93,21 @@ export default {
     const [first, ...rest] = philosophers;
     // const [...most, last] = philosophers; // <-- not allowed :(
   `,
+  this: stripIndent`
+    function sayHello() {
+      console.log("Hi, my name is", this.name);
+    }
+
+    // sayHello(); // Cannot read property 'name' of undefined
+    sayHello.call({ name: "Philosoraptor" });
+
+    const duck = {
+      name: "Donald Duck",
+      sayHello
+    };
+
+    duck.sayHello();
+  `,
   setTimeout: stripIndent`
     setTimeout(() => {
       console.log("hello from the future!");
@@ -106,8 +121,8 @@ export default {
       })
   `,
   IIFE: stripIndent`
-    (function () {
-      let x = 1;
+    (function (){
+      console.log(this);
     }());
   `,
   "Circular data": stripIndent`
