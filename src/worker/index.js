@@ -80,8 +80,12 @@ self.onmessage = ({ data: { code, config = {} } }) => {
     let interval = setInterval(messageUpdates, TIMEOUT);
     messageUpdates();
   } catch (error) {
-    console.error("  ERR", error);
-    self.postMessage({ code, config, error });
+    console.debug("  ERR", error);
+    const {
+      message,
+      constructor: { name: type }
+    } = error;
+    self.postMessage({ code, config, error: { message, type } });
   }
 };
 

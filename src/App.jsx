@@ -123,7 +123,7 @@ export default function App() {
             <h2 css="color: #c00;">Uh oh!</h2>
             <pre css="color: #c00;">
               {typeof error === "object"
-                ? error.message
+                ? `${"type" in error ? `${error.type}: ` : ``}${error.message}`
                 : typeof error === "string"
                 ? error
                 : null}
