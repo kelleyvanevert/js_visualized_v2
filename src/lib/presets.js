@@ -114,11 +114,18 @@ export default {
     }, 100);
   `,
   "Promise / fetch": stripIndent`
-    fetch("https://xkcd.now.sh/?comic=303")
-      .then(res => res.json())
-      .then(data => {
-        console.log(data);
-      })
+    const promise = fetch("https://xkcd.now.sh/?comic=303");
+
+    const promise2 = promise.then(res => {
+      console.log(res.status);
+      return res.json();
+    });
+
+    promise2.then(data => {
+      console.log(data);
+    });
+
+    console.log("done?");
   `,
   IIFE: stripIndent`
     (function (){

@@ -115,7 +115,8 @@ export default function(babel, { ns = "__V__" } = {}) {
       //  "too late" to catch up with some of the transforms, making this
       //  solution behave erratically.  --->  Maybe we can do some kind
       //  of traversal-exit-time meta-filling?
-      if (ids.length > 0) {
+      if (scope._original) {
+        // ids.length > 0
         scopes.push(
           Object.fromEntries(
             ids.map(id => [
@@ -166,6 +167,9 @@ export default function(babel, { ns = "__V__" } = {}) {
     VariableDeclaration(path) {
       path.node.kind = "var";
     },
+    Program(path) {
+      path.scope._original = true;
+    },
     Statement(path) {
       if (!path.node.loc || path.node._done) return;
       path.node._done = true;
@@ -175,6 +179,8 @@ export default function(babel, { ns = "__V__" } = {}) {
       //  is not the surrounding scope of it as an expression,
       //  but rather it's own scope. Not what we're looking for!
       const scope = t.isFunction(path) ? path.parentPath.scope : path.scope;
+
+      scope._original = true;
 
       if (!t.isBlockStatement(path)) {
         path.insertBefore(
@@ -242,6 +248,9 @@ export default function(babel, { ns = "__V__" } = {}) {
 
         const TMP = make_temporary_variable();
 
+        const bodyScope = path.get("body").scope;
+        bodyScope._original = true;
+
         path.replaceWith(
           t.blockStatement([
             init_as_statement,
@@ -249,7 +258,7 @@ export default function(babel, { ns = "__V__" } = {}) {
               t.booleanLiteral(true),
               t.blockStatement([
                 t.expressionStatement(
-                  REPORT(null, path.node.test, scope, "before")
+                  REPORT(null, path.node.test, bodyScope, "before")
                 ),
                 t.expressionStatement(
                   t.assignmentExpression("=", TMP, path.node.test)
@@ -257,7 +266,7 @@ export default function(babel, { ns = "__V__" } = {}) {
                 t.ifStatement(t.unaryExpression("!", TMP), t.breakStatement()),
                 ...path.node.body.body,
                 t.expressionStatement(
-                  REPORT(null, path.node.update, scope, "before")
+                  REPORT(null, path.node.update, bodyScope, "before")
                 ),
                 t.expressionStatement(path.node.update)
               ])
@@ -269,6 +278,14 @@ export default function(babel, { ns = "__V__" } = {}) {
     ArrowFunctionExpression(path) {
       if (!path.node.loc || path.node._done) return;
       path.node._done = true;
+
+      // No idea why, but for some
+      //  reason the scope of a Function node
+      //  is not the surrounding scope of it as an expression,
+      //  but rather it's own scope. Not what we're looking for!
+      const scope = path.parentPath.scope;
+
+      scope._original = true;
 
       path.replaceWith(
         REPORT(
@@ -286,11 +303,7 @@ export default function(babel, { ns = "__V__" } = {}) {
             [t.thisExpression()]
           ),
           path.node,
-          // No idea why, but for some
-          //  reason the scope of a Function node
-          //  is not the surrounding scope of it as an expression,
-          //  but rather it's own scope. Not what we're looking for!
-          path.parentPath.scope,
+          scope,
           "after"
         )
       );
@@ -299,22 +312,21 @@ export default function(babel, { ns = "__V__" } = {}) {
       if (!path.node.loc || path.node._done) return;
       path.node._done = true;
 
-      path.replaceWith(
-        REPORT(
-          path.node,
-          path.node,
-          // No idea why, but for some
-          //  reason the scope of a Function node
-          //  is not the surrounding scope of it as an expression,
-          //  but rather it's own scope. Not what we're looking for!
-          path.parentPath.scope,
-          "after"
-        )
-      );
+      // No idea why, but for some
+      //  reason the scope of a Function node
+      //  is not the surrounding scope of it as an expression,
+      //  but rather it's own scope. Not what we're looking for!
+      const scope = path.parentPath.scope;
+
+      scope._original = true;
+
+      path.replaceWith(REPORT(path.node, path.node, scope, "after"));
     },
     Expression(path) {
       if (!path.node.loc || path.node._done) return;
       path.node._done = true;
+
+      path.scope._original = true;
 
       if (t.isAssignmentExpression(path)) {
         bailout_lval(path.node.left);
