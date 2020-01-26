@@ -7,7 +7,7 @@
   ],
   "scripts": {
     "build": "parcel build src/index.html",
-    "start": "parcel src/index.html src/worker/index.js",
+    "start": "parcel src/index.html",
     "clean": "rm -rf .cache dist"
   },
   "devDependencies": {
@@ -22,6 +22,7 @@
     "babel-plugin-macros": "^2.8.0",
     "babel-polyfill": "^6.26.0",
     "common-tags": "^1.8.0",
+    "d3-force": "^2.0.1",
     "lz-string": "^1.4.4",
     "prismjs": "^1.19.0",
     "react": "^16.8.0",

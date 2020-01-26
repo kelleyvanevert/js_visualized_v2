@@ -23,5 +23,17 @@ export default {
     fg: color(teal)
       .darken(0.2)
       .string()
+  },
+  border: "#555",
+
+  // syntax
+  syntax: {
+    variable: "#881391",
+    key: "#881391",
+    string: "#c41a16",
+    number: "#1c00cf",
+    boolean: "#1c00cf",
+    null: "#808080",
+    undefined: "#808080"
   }
 };

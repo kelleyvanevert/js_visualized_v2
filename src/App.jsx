@@ -1,71 +1,53 @@
 import "styled-components/macro";
-import React, { useState, useEffect } from "react";
-import { useThrottle } from "react-use";
+import React, { useMemo, useRef } from "react";
 import Editor from "react-simple-code-editor";
+import stripIndent from "common-tags/lib/stripIndent";
 
-import { undescribe } from "./lib/describe";
-import add_waiting_time_steps from "./lib/add_waiting_time_steps";
-import presets from "./lib/presets";
+import { describe } from "./lib/describe";
 
 import useCode from "./lib/useCode";
-import useMostRecent from "./lib/useMostRecent";
-import useReplacableWorker from "./lib/useReplacableWorker";
 
-import StepSlider from "./ui/StepSlider";
 import Highlight from "./ui/Highlight";
 import Menu from "./ui/Menu";
-import Step from "./ui/Step";
+import Memory from "./ui/Memory";
 
 import "./App.scss";
 
+const presets = {
+  number: `const value = 5;`,
+  string: `const value = "Hello";`,
+  Kelley: stripIndent`
+    const value = {
+      name: "Kelley",
+      age: 27,
+      hobbies: [
+        { title: "Programming", level: "reasonable" },
+        { title: "Playing double bass", level: "undetermined" },
+        { title: "Sleeping", level: "advanced" }
+      ]
+    };
+  `
+};
+
 export default function App() {
-  const [code, set_code] = useCode(presets["Promise / fetch"]);
-  const [cache, set_cache] = useState({});
+  const [code, set_code] = useCode(`hi`);
 
-  const worker = useReplacableWorker(data => {
-    if (!data.error) {
-      data.steps = JSON.parse(data.steps);
-      data.steps.forEach(step => {
-        if ("value" in step) {
-          step.value = undescribe(step.value);
-        }
-        if ("scopes" in step) {
-          step.scopes.forEach(scope => {
-            Object.keys(scope).forEach(key => {
-              scope[key] = undescribe(scope[key]);
-            });
-          });
-        }
-        if ("logs" in step) {
-          step.logs = step.logs.map(line => {
-            return line.map(item => undescribe(item));
-          });
-        }
-      });
-      add_waiting_time_steps(data.steps);
+  const currentCodeDescription = useMemo(() => {
+    try {
+      const value = eval(`${code}; value`);
+      return describe(value);
+    } catch {
+      return null;
     }
-    set_cache(cache => {
-      return {
-        ...cache,
-        [data.code]: data
-      };
-    });
-  });
+  }, [code]);
 
-  useEffect(() => {
-    if (worker && !cache[code]) {
-      worker.postMessage({ code });
-    }
-  }, [code, cache, worker]);
+  const mostRecentRef = useRef();
 
-  const state = cache[code] || { loading: true };
-  const { loading, steps } = state;
-  const { loading: loading_throttled, error } = useThrottle(state, 200);
+  if (currentCodeDescription) {
+    mostRecentRef.current = currentCodeDescription;
+  }
 
-  const max = useMostRecent(steps, []).length - 1;
-  const [at, set_at] = useState(0);
-  const step =
-    steps && steps[Math.max(0, Math.min(steps.length - 1, Math.round(at)))];
+  const { current: description } = mostRecentRef;
 
   return (
     <div className="App">
@@ -87,26 +69,17 @@ export default function App() {
           })}
           onSelect={(item, close) => {
             set_code(item.code);
-            set_at(0);
             close();
             const btn = document.getElementById("StepSliderThumb");
             btn && btn.focus();
           }}
-        />
-        <StepSlider
-          max={max}
-          step={step}
-          value={at}
-          onValueChange={set_at}
-          loading={loading}
-          error={error}
         />
       </div>
       <div className="Editor">
         <Editor
           value={code}
           onValueChange={set_code}
-          highlight={code => <Highlight code={code} step={step} />}
+          highlight={code => <Highlight code={code} />}
           padding={24}
           style={{
             fontFamily: "Menlo, Consolas, monospace",
@@ -117,30 +90,9 @@ export default function App() {
           textareaClassName="Code"
         />
       </div>
-      {error ? (
-        <div className="InfoPanelGroup">
-          <div className="InfoPanel">
-            <h2 css="color: #c00;">Uh oh!</h2>
-            <pre css="color: #c00;">
-              {typeof error === "object"
-                ? `${"type" in error ? `${error.type}: ` : ``}${error.message}`
-                : typeof error === "string"
-                ? error
-                : null}
-            </pre>
-          </div>
-        </div>
-      ) : step ? (
-        <Step
-          step={step}
-          logs={steps
-            .slice(0, step.num + 1)
-            .map(s => s.logs || [])
-            .flat()}
-        />
-      ) : (
-        <Step />
-      )}
+      <div>
+        {description && <Memory node={description[0]} heap={description[1]} />}
+      </div>
     </div>
   );
 }
