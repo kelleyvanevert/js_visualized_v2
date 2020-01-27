@@ -59,7 +59,7 @@ export default function Step({ step = { category: "init" }, logs = [] }) {
                     ? `about to ${
                         step.category === "expression" ? "evaluate" : "execute"
                       }`
-                    : step.type === "statement"
+                    : step.category === "statement"
                     ? "executed"
                     : "evaluated"}
                 </strong>{" "}

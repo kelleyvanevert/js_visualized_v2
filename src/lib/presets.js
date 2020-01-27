@@ -1,21 +1,28 @@
 import stripIndent from "common-tags/lib/stripIndent";
 
 export default {
-  "For-loop": stripIndent`
+  "Basic for-loop": stripIndent`
     for (let i = 0; i < 5; i++) {
       console.log(i);
     }
-
-    // Alternatively:
-    // for (let i of [0,1,2,3,4]) {
-    //   console.log(i);
-    // }
-
-    // Or:
-    // [0,1,2,3,4].forEach(i => {
-    //   console.log(i);
-    // });
   `,
+  "For-loop iterating an array": stripIndent`
+    const arr = ["Philosoraptor", "T-Rex", "Dodecahedron"];
+
+    for (let i = 0; i < arr.length; i++) {
+      const item = arr[i];
+      console.log(item);
+    }
+  `,
+  // Alternatively:
+  // for (let i of [0,1,2,3,4]) {
+  //   console.log(i);
+  // }
+
+  // Or:
+  // [0,1,2,3,4].forEach(i => {
+  //   console.log(i);
+  // });
   "While-loop": stripIndent`
     let i = 0;
     while (i < 5) {

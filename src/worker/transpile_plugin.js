@@ -94,41 +94,33 @@ export default function(babel, { ns = "__V__" } = {}) {
     }
   }
 
-  function meta(category, node, scope, time) {
+  function meta(category, node, scope, time, extra = {}) {
     // return json(node.type + "-" + time); // for easier debugging in the AST explorer
 
     const scopes = [];
     while (scope) {
-      const ids = Object.keys(scope.bindings);
-      // This is VERY sub-optimal (only showing scopes if non-empty),
-      //  but it's the best band-aid I could come up with while leaving
-      //  the following newly introduced problem unsolved:
-      // The new traversal technique is to not recurse explicitly,
-      //  and rather just bail out whenever a node has already been seen
-      //  and/or w is a transform-introduced node (=== without source loc).
-      // This allows waaay easier coding, but it also can accidentally
-      //  introduce extra unnecessary scopes. We can identify a new scope with
-      //  `!scope.block.loc`, but it can sometimes "inherit" the bindings of
-      //  the original one. We can then articially hoist these bindings up
-      //  manually, but due to the dynamic nature of the code-transform
-      //  and because the `meta` fn is performed along-the-way, it seems
-      //  "too late" to catch up with some of the transforms, making this
-      //  solution behave erratically.  --->  Maybe we can do some kind
-      //  of traversal-exit-time meta-filling?
+      const def = scope._defined || {};
+
+      const scopeEntries = Object.entries(scope.bindings).map(
+        ([id, binding]) => {
+          return [
+            id + (scope._original ? "" : " (!)"),
+            {
+              $ast: t.callExpression(t.identifier(ns + ".describe"), [
+                def[id] ||
+                (scopes.length === 0 && extra.def && extra.def.includes(id)) || // hacky!
+                binding.kind === "param" ||
+                binding.kind === "hoisted"
+                  ? t.identifier(id)
+                  : t.identifier("undefined")
+              ])
+            }
+          ];
+        }
+      );
+
       if (scope._original) {
-        // ids.length > 0
-        scopes.push(
-          Object.fromEntries(
-            ids.map(id => [
-              id,
-              {
-                $ast: t.callExpression(t.identifier(ns + ".describe"), [
-                  t.identifier(id)
-                ])
-              }
-            ])
-          )
-        );
+        scopes.push(Object.fromEntries(scopeEntries));
       }
       scope = scope.parent;
     }
@@ -144,10 +136,23 @@ export default function(babel, { ns = "__V__" } = {}) {
     return json(metadata);
   }
 
-  function REPORT(value, node, scope, time) {
+  function REPORT(value, node, scope, time, extra = {}) {
+    // if (extra.reportOnExit) {
+    //   const expr = t.nullLiteral();
+    //   const { reportOnExit, ...rest } = extra;
+    //   expr._report_todo = [value, node, scope, time, rest];
+    //   return expr;
+    // }
+
     return t.callExpression(t.identifier(ns + ".report"), [
       value || t.identifier("undefined"),
-      meta(t.isExpression(node) ? "expression" : "statement", node, scope, time)
+      meta(
+        t.isExpression(node) ? "expression" : "statement",
+        node,
+        scope,
+        time,
+        extra
+      )
     ]);
   }
 
@@ -160,119 +165,162 @@ export default function(babel, { ns = "__V__" } = {}) {
     );
   }
 
+  function gather_defined_ids(node) {
+    if (t.isVariableDeclaration(node)) {
+      return node.declarations.map(gather_defined_ids).flat();
+    } else if (t.isVariableDeclarator(node)) {
+      return gather_defined_ids(node.id);
+    } else if (t.isIdentifier(node)) {
+      return [node.name];
+    } else {
+      console.warn("TODO implement gather_defined_ids for:", node.type);
+      return [];
+    }
+  }
+
   const visitor = {
     // This is an ugly trick to get the scope data "out" easily
     // If we leave the variables as let and const, then we run into non-initialized errors
     //  when reporting back the scope's contents.
     VariableDeclaration(path) {
-      path.node.kind = "var";
+      // path.node.kind = "var";
+    },
+    VariableDeclarator: {
+      exit(path) {
+        const def = (path.scope._defined = path.scope._defined || {});
+        gather_defined_ids(path.node.id).forEach(id => {
+          def[id] = true;
+        });
+      }
     },
     Program(path) {
       path.scope._original = true;
     },
-    Statement(path) {
-      if (!path.node.loc || path.node._done) return;
-      path.node._done = true;
+    Statement: {
+      enter(path) {
+        if (!path.node.loc || path.node._done) return;
+        path.node._done = 1;
 
-      // No idea why, but for some
-      //  reason the scope of a Function node
-      //  is not the surrounding scope of it as an expression,
-      //  but rather it's own scope. Not what we're looking for!
-      const scope = t.isFunction(path) ? path.parentPath.scope : path.scope;
+        // Because hoisted
+        if (t.isFunctionDeclaration(path)) return;
 
-      scope._original = true;
+        // For-statement scope is "internal" just like function's...?
+        const scope = t.isForStatement(path)
+          ? path.parentPath.scope
+          : path.scope;
 
-      if (!t.isBlockStatement(path)) {
-        path.insertBefore(
-          t.expressionStatement(REPORT(null, path.node, scope, "before"))
-        );
+        scope._original = true;
 
-        path.insertAfter(
-          t.expressionStatement(REPORT(null, path.node, scope, "after"))
-        );
-      }
+        path.scope._original = true;
 
-      if (t.isReturnStatement(path)) {
-        const report_after = path.getSibling(path.key + 1);
+        if (!t.isBlockStatement(path)) {
+          path.insertBefore(
+            t.expressionStatement(REPORT(null, path.node, scope, "before"))
+          );
 
-        path.replaceWith(
-          t.expressionStatement(
-            t.assignmentExpression(
-              "=",
-              t.identifier(ns + ".return"),
-              path.node.argument
+          // path.insertAfter(
+          //   t.expressionStatement(REPORT(null, path.node, scope, "after"))
+          // );
+        }
+
+        if (t.isReturnStatement(path)) {
+          const report_after = path.getSibling(path.key + 1);
+
+          path.replaceWith(
+            t.expressionStatement(
+              t.assignmentExpression(
+                "=",
+                t.identifier(ns + ".return"),
+                path.node.argument
+              )
             )
-          )
-        );
+          );
 
-        report_after.insertAfter(
-          t.returnStatement(t.identifier(ns + ".return"))
-        );
-      } else if (t.isWhileStatement(path)) {
-        // Transform the while-statement just a bit,
-        //  so that we can show a pre-test-expression report
+          report_after.insertAfter(
+            t.returnStatement(t.identifier(ns + ".return"))
+          );
+        } else if (t.isWhileStatement(path)) {
+          // Transform the while-statement just a bit,
+          //  so that we can show a pre-test-expression report
 
-        const TMP = make_temporary_variable();
+          const TMP = make_temporary_variable();
 
-        path.replaceWith(
-          t.whileStatement(
-            t.booleanLiteral(true),
-            t.blockStatement([
-              t.expressionStatement(
-                REPORT(null, path.node.test, scope, "before")
-              ),
-              t.expressionStatement(
-                t.assignmentExpression("=", TMP, path.node.test)
-              ),
-              t.ifStatement(t.unaryExpression("!", TMP), t.breakStatement()),
-              ...path.node.body.body
-            ])
-          )
-        );
-      } else if (t.isForStatement(path)) {
-        // Transform the for-statement in such a way,
-        //  that we can show pre- reports for the
-        //  init, test and update elements.
-
-        let init_type = path.node.init
-          ? t.isVariableDeclaration(path.node.init)
-            ? "decl"
-            : "expr"
-          : "none";
-
-        let init_as_statement = {
-          decl: () => path.node.init,
-          expr: () => t.expressionStatement(path.node.init),
-          none: () => t.expressionStatement(t.nullLiteral())
-        }[init_type]();
-
-        const TMP = make_temporary_variable();
-
-        const bodyScope = path.get("body").scope;
-        bodyScope._original = true;
-
-        path.replaceWith(
-          t.blockStatement([
-            init_as_statement,
+          path.replaceWith(
             t.whileStatement(
               t.booleanLiteral(true),
               t.blockStatement([
                 t.expressionStatement(
-                  REPORT(null, path.node.test, bodyScope, "before")
+                  REPORT(null, path.node.test, path.scope, "before")
                 ),
                 t.expressionStatement(
                   t.assignmentExpression("=", TMP, path.node.test)
                 ),
                 t.ifStatement(t.unaryExpression("!", TMP), t.breakStatement()),
-                ...path.node.body.body,
-                t.expressionStatement(
-                  REPORT(null, path.node.update, bodyScope, "before")
-                ),
-                t.expressionStatement(path.node.update)
+                ...path.node.body.body
               ])
             )
-          ])
-        );
+          );
+        } else if (t.isForStatement(path)) {
+          // Transform the for-statement in such a way,
+          //  that we can show pre- reports for the
+          //  init, test and update elements.
+
+          let init_type = path.node.init
+            ? t.isVariableDeclaration(path.node.init)
+              ? "decl"
+              : "expr"
+            : "none";
+
+          let init_as_statement = {
+            decl: () => path.node.init,
+            expr: () => t.expressionStatement(path.node.init),
+            none: () => t.expressionStatement(t.nullLiteral())
+          }[init_type]();
+
+          const TMP = make_temporary_variable();
+
+          path.node.test._reportBefore = true;
+          path.node.update._reportBefore = true;
+
+          path.replaceWith(
+            t.blockStatement([
+              init_as_statement,
+              t.whileStatement(
+                t.booleanLiteral(true),
+                t.blockStatement([
+                  t.expressionStatement(
+                    t.assignmentExpression("=", TMP, path.node.test)
+                  ),
+                  t.ifStatement(
+                    t.unaryExpression("!", TMP),
+                    t.breakStatement()
+                  ),
+                  // Indeed not ...path.node.body.body,
+                  //  because the body should introduce an extra scope.
+                  // For example, this should give a TypError:
+                  //     for (let i = 0; i < 2; console.log(item), i++) {
+                  //       const item = "something";
+                  //     }
+                  path.node.body,
+                  t.expressionStatement(path.node.update)
+                ])
+              )
+            ])
+          );
+        }
+      },
+      exit(path) {
+        if (!path.node.loc || path.node._done === 2) return;
+        path.node._done = 2;
+
+        // Because hoisted
+        if (t.isFunctionDeclaration(path)) return;
+
+        if (!t.isBlockStatement(path)) {
+          path.insertAfter(
+            t.expressionStatement(REPORT(null, path.node, path.scope, "after"))
+          );
+        }
       }
     },
     ArrowFunctionExpression(path) {
@@ -332,6 +380,10 @@ export default function(babel, { ns = "__V__" } = {}) {
         bailout_lval(path.node.left);
       }
 
+      const maybeBeforeHandReporterNode = path.node._reportBefore
+        ? REPORT(null, path.node, path.scope, "before")
+        : t.nullLiteral();
+
       if (t.isCallExpression(path)) {
         const contextual = t.isMemberExpression(path.get("callee"));
 
@@ -347,33 +399,36 @@ export default function(babel, { ns = "__V__" } = {}) {
           : "(irrelevant)";
 
         path.replaceWith(
-          REPORT(
-            t.callExpression(
-              t.memberExpression(
-                contextual
-                  ? REPORT(
-                      t.memberExpression(
-                        t.assignmentExpression(
-                          "=",
-                          TMP_context,
-                          path.node.callee.object
+          t.sequenceExpression([
+            maybeBeforeHandReporterNode,
+            REPORT(
+              t.callExpression(
+                t.memberExpression(
+                  contextual
+                    ? REPORT(
+                        t.memberExpression(
+                          t.assignmentExpression(
+                            "=",
+                            TMP_context,
+                            path.node.callee.object
+                          ),
+                          path.node.callee.property,
+                          computed
                         ),
-                        path.node.callee.property,
-                        computed
-                      ),
-                      path.node.callee,
-                      path.scope,
-                      "after"
-                    )
-                  : path.node.callee,
-                t.identifier("call")
+                        path.node.callee,
+                        path.scope,
+                        "after"
+                      )
+                    : path.node.callee,
+                  t.identifier("call")
+                ),
+                [TMP_context, ...path.node.arguments]
               ),
-              [TMP_context, ...path.node.arguments]
-            ),
-            path.node,
-            path.scope,
-            "after"
-          )
+              path.node,
+              path.scope,
+              "after"
+            )
+          ])
         );
       } else if (t.isUpdateExpression(path)) {
         // Technically speaking, this is not fully correct, because
@@ -407,6 +462,7 @@ export default function(babel, { ns = "__V__" } = {}) {
           const __arg = clone_and_detach(arg); // non-reported copy
           path.replaceWith(
             t.sequenceExpression([
+              maybeBeforeHandReporterNode,
               t.assignmentExpression(
                 "=",
                 __arg,
@@ -428,6 +484,7 @@ export default function(babel, { ns = "__V__" } = {}) {
           const __arg = clone_and_detach(arg); // non-reported copy
           path.replaceWith(
             t.sequenceExpression([
+              maybeBeforeHandReporterNode,
               t.assignmentExpression("=", TMP, arg),
               t.assignmentExpression(
                 "=",
@@ -444,7 +501,12 @@ export default function(babel, { ns = "__V__" } = {}) {
         }
       } else {
         // Finally, the normal case!
-        path.replaceWith(REPORT(path.node, path.node, path.scope, "after"));
+        path.replaceWith(
+          t.sequenceExpression([
+            maybeBeforeHandReporterNode,
+            REPORT(path.node, path.node, path.scope, "after")
+          ])
+        );
       }
     }
   };
