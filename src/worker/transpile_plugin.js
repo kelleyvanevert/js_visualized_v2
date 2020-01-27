@@ -119,7 +119,11 @@ export default function(babel, { ns = "__V__" } = {}) {
         }
       );
 
-      if (scope._original) {
+      console.log(scope._original, scope._definitelySkip);
+      if (scope._definitelySkip) {
+        console.log(scope);
+      }
+      if (scope._original && !scope._definitelySkip) {
         scopes.push(Object.fromEntries(scopeEntries));
       }
       scope = scope.parent;
@@ -217,22 +221,18 @@ export default function(babel, { ns = "__V__" } = {}) {
         if (t.isFunctionDeclaration(path)) return;
 
         // For-statement scope is "internal" just like function's...?
-        const scope = t.isForStatement(path)
-          ? path.parentPath.scope
-          : path.scope;
+        const scope =
+          t.isForStatement(path) || t.isWhileStatement(path)
+            ? path.parentPath.scope
+            : path.scope;
 
         scope._original = true;
-
-        path.scope._original = true;
+        // path.scope._original = true; // ??
 
         if (!t.isBlockStatement(path)) {
           path.insertBefore(
             t.expressionStatement(REPORT(null, path.node, scope, "before"))
           );
-
-          // path.insertAfter(
-          //   t.expressionStatement(REPORT(null, path.node, scope, "after"))
-          // );
         }
 
         if (t.isReturnStatement(path)) {
@@ -271,6 +271,9 @@ export default function(babel, { ns = "__V__" } = {}) {
               ])
             )
           );
+
+          // skip the if statement's scope (band-aid solution)
+          path.get("body").get("body")[1].scope._definitelySkip = true;
         } else if (t.isForStatement(path)) {
           // Transform the for-statement in such a way,
           //  that we can show pre- reports for the
@@ -318,6 +321,12 @@ export default function(babel, { ns = "__V__" } = {}) {
               )
             ])
           );
+
+          // skip the if statement's scope (band-aid solution)
+          path
+            .get("body")[1]
+            .get("body")
+            .get("body")[1].scope._definitelySkip = true;
         }
       },
       exit(path) {
