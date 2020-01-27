@@ -119,10 +119,6 @@ export default function(babel, { ns = "__V__" } = {}) {
         }
       );
 
-      console.log(scope._original, scope._definitelySkip);
-      if (scope._definitelySkip) {
-        console.log(scope);
-      }
       if (scope._original && !scope._definitelySkip) {
         scopes.push(Object.fromEntries(scopeEntries));
       }
