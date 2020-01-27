@@ -245,18 +245,17 @@ export default function(babel, { ns = "__V__" } = {}) {
 
           const TMP = make_temporary_variable();
 
+          path.node.test._reportBefore = true;
+
           path.replaceWith(
             t.whileStatement(
               t.booleanLiteral(true),
               t.blockStatement([
                 t.expressionStatement(
-                  REPORT(null, path.node.test, path.scope, "before")
-                ),
-                t.expressionStatement(
                   t.assignmentExpression("=", TMP, path.node.test)
                 ),
                 t.ifStatement(t.unaryExpression("!", TMP), t.breakStatement()),
-                ...path.node.body.body
+                path.node.body
               ])
             )
           );
