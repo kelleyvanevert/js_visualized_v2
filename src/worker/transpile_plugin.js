@@ -179,11 +179,10 @@ export default function(babel, { ns = "__V__" } = {}) {
   }
 
   const visitor = {
-    // This is an ugly trick to get the scope data "out" easily
-    // If we leave the variables as let and const, then we run into non-initialized errors
-    //  when reporting back the scope's contents.
     VariableDeclaration(path) {
-      // path.node.kind = "var";
+      if (path.node.kind === "var") {
+        throw path.buildCodeFrameError("The `var` keyword is not supported");
+      }
     },
     VariableDeclarator: {
       exit(path) {
