@@ -165,13 +165,26 @@ export default function(babel, { ns = "__V__" } = {}) {
     );
   }
 
+  // node: `const { a, b: [c, ...d], ...e } = ...;`
+  // gather_defined_ids(node.id) ~> ["a", "c", "d", "e"]
   function gather_defined_ids(node) {
-    if (t.isVariableDeclaration(node)) {
+    if (t.isIdentifier(node)) {
+      // this is where it all ends :P
+      return [node.name];
+    } else if (t.isVariableDeclaration(node)) {
       return node.declarations.map(gather_defined_ids).flat();
     } else if (t.isVariableDeclarator(node)) {
       return gather_defined_ids(node.id);
-    } else if (t.isIdentifier(node)) {
-      return [node.name];
+    } else if (t.isObjectPattern(node)) {
+      return node.properties.map(gather_defined_ids).flat();
+    } else if (t.isObjectProperty(node)) {
+      return gather_defined_ids(node.value);
+    } else if (t.isArrayPattern(node)) {
+      return node.elements.map(gather_defined_ids).flat();
+    } else if (t.isRestElement(node)) {
+      return gather_defined_ids(node.argument);
+    } else if (t.isAssignmentPattern(node)) {
+      return gather_defined_ids(node.left);
     } else {
       console.warn("TODO implement gather_defined_ids for:", node.type);
       return [];
