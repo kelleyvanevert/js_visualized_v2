@@ -1,11 +1,8 @@
-import React, { useRef, useLayoutEffect, useState } from "react";
-import * as d3 from "d3-force";
+import React, { useRef, useLayoutEffect, useState, useEffect } from "react";
+import ELK from "elkjs/lib/elk.bundled.js";
 
 import theme from "./theme";
 
-import forceTopLeft from "./memory/forceTopLeft";
-import forceRectCollide from "./memory/forceRectCollide";
-import forceHeapRef from "./memory/forceHeapRef";
 /*
 
 type Node =
@@ -39,136 +36,113 @@ export default function Memory({ node, heap }) {
   const width = 800;
   const height = 400;
 
-  const layout = useRef({
-    simulation: null,
-    simNodes: [],
-    heapObjectDomNodes: [],
-    restart() {
-      if (!this.simulation) return;
+  const [graph, set_graph] = useState();
 
-      this.simulation
-        .nodes(this.simNodes)
-        .alpha(1)
-        .restart();
+  const layout = useRef({
+    heapObjectDomNodes: [],
+    graph: {
+      id: "root",
+      layoutOptions: {
+        "elk.algorithm": "layered",
+        "elk.layered.feedbackEdges": true,
+        "elk.edgeRouting": "SPLINES",
+        "elk.direction": "RIGHT",
+        // "org.eclipse.elk.layered.spacing.edgeNodeBetweenLayers": 40,
+        "org.eclipse.elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX",
+        "org.eclipse.elk.layered.wrapping.strategy": "MULTI_EDGE",
+        "org.eclipse.elk.layered.wrapping.correctionFactor": 100
+        // "org.eclipse.elk.layered.edgeRouting.splines.mode": "SLOPPY",
+        // "org.eclipse.elk.layered.edgeRouting.splines.sloppy.layerSpacingFactor": 0.9
+        // hierarchyHandling: "INCLUDE_CHILDREN"
+      },
+      children: [],
+      edges: []
+    },
+    elk: new ELK(),
+    cycle: 0,
+    async redraw(heap) {
+      console.log("redraw", heap);
+      const myCycle = ++this.cycle;
+
+      this.graph.children = this.heapObjectDomNodes.map((node, i) => {
+        const { width, height } = node.getBoundingClientRect();
+        const ports = heap[i].entries
+          .map(([key, val]) => {
+            if (val.category === "compound") {
+              const id = `${i}-${key}`;
+              return {
+                id
+                // properties: {
+                //   "org.eclipse.elk.port.side": "SIDES_NORTH_EAST"
+                // }
+              };
+            }
+          })
+          .filter(Boolean);
+        return { id: i, width, height, ports, labels: [{ text: "hello" }] };
+      });
+
+      this.graph.edges = heap
+        .map((obj, i) => {
+          return obj.entries
+            .map(([key, val]) => {
+              if (val.category === "compound") {
+                const id = `${i}-${key}-${val.at}`;
+                return {
+                  id,
+                  source: i,
+                  sourcePort: `${i}-${key}`,
+                  target: val.at
+                };
+              }
+            })
+            .filter(Boolean);
+        })
+        .flat();
+
+      await this.elk.layout(this.graph);
+
+      if (this.cycle !== myCycle) {
+        console.warn("invalidated");
+        return;
+      }
+
+      console.log("TODO");
+      set_graph({ ...this.graph });
     }
   }).current;
 
-  useLayoutEffect(() => {
-    // Make sure there is the right amount of simulation nodes,
-    //  on for each heap object -- without removing previous ones
-    layout.simNodes = layout.simNodes
-      .slice(0, heap.length)
-      .concat(heap.slice(layout.simNodes.length).map(() => ({ vx: 0, vy: 0 })));
-
-    layout.simNodes.forEach((simNode, i) => {
-      simNode.heapObject = heap[i];
-    });
-
-    // Make some heuristics calculations
-    // ...?
-
-    layout.restart();
+  useEffect(() => {
+    layout.redraw(heap);
   }, [heap]);
 
-  useLayoutEffect(() => {
-    function ticked() {
-      console.log("tick");
-      layout.heapObjectDomNodes.forEach((domNode, i) => {
-        if (!domNode) return;
-
-        domNode.style.left = `${layout.simNodes[i].x}px`;
-        domNode.style.top = `${layout.simNodes[i].y}px`;
-      });
-    }
-
-    layout.simulation = d3
-      .forceSimulation(layout.simNodes)
-      .force("place_top_left", forceTopLeft())
-      .force(
-        "avoid_collisions",
-        forceRectCollide().size(node => {
-          const rect = layout.heapObjectDomNodes[
-            node.index
-          ].getBoundingClientRect();
-          return [rect.width + 20, rect.height + 20];
-        })
-      )
-      .force("heap_references", forceHeapRef())
-      .on("tick", ticked);
-  }, []);
-
-  const [drag, set_drag] = useState();
+  console.log("render", graph);
 
   return (
     <div
-      ref={el => (layout.container = el)}
+      ref={el => {
+        if (el) {
+          layout.container = el;
+          // !graph && computeLayout();
+        }
+      }}
       style={{ width, height, position: "relative", background: "#eee" }}
-      onMouseMove={e => {
-        if (!drag) return;
-        const { i, initial } = drag;
-
-        const simNode = layout.simNodes[i];
-        simNode.vx = simNode.vy = 0;
-
-        const dx = e.pageX - initial.e.pageX;
-        const dy = e.pageY - initial.e.pageY;
-        simNode.fx = simNode.x = initial.simNode.x + dx;
-        simNode.fy = simNode.y = initial.simNode.y + dy;
-
-        const domNode = layout.heapObjectDomNodes[i];
-        domNode.style.left = `${simNode.fx}px`;
-        domNode.style.top = `${simNode.fy}px`;
-
-        e.stopPropagation();
-        e.preventDefault();
-      }}
-      onMouseUp={e => {
-        if (!drag) return;
-        const { i } = drag;
-
-        const simNode = layout.simNodes[i];
-        delete simNode.fx;
-        delete simNode.fy;
-
-        set_drag(undefined);
-        layout.restart();
-
-        e.stopPropagation();
-        e.preventDefault();
-      }}
     >
       {heap.map((obj, i) => {
+        const graphNode = graph && graph.children && graph.children[i];
+
         return (
           <div
             key={i}
-            ref={el => (layout.heapObjectDomNodes[i] = el)}
+            ref={el => {
+              if (el) {
+                layout.heapObjectDomNodes[i] = el;
+              }
+            }}
             style={{
               position: "absolute",
-              top: 0,
-              left: 0,
-              cursor: "pointer",
-              userSelect: "none"
-            }}
-            onMouseDown={e => {
-              if (e.button !== 0) return;
-
-              const simNode = layout.simNodes[i];
-              simNode.fx = simNode.x;
-              simNode.fy = simNode.y;
-              const newDragState = {
-                i,
-                initial: {
-                  simNode: { ...simNode },
-                  e: {
-                    pageX: e.pageX,
-                    pageY: e.pageY
-                  }
-                }
-              };
-              set_drag(newDragState);
-
-              e.stopPropagation();
-              e.preventDefault();
+              top: graphNode ? graphNode.y : undefined,
+              left: graphNode ? graphNode.x : undefined
             }}
           >
             <HeapObject {...obj} />
@@ -184,7 +158,28 @@ export default function Memory({ node, heap }) {
           left: 0,
           pointerEvents: "none"
         }}
-      ></svg>
+      >
+        <g strokeWidth={2} stroke="black" fill="none">
+          {graph &&
+            graph.edges.map(edge => {
+              return edge.sections.map(section => {
+                const {
+                  id,
+                  startPoint: a,
+                  endPoint: b,
+                  bendPoints: [c1, c2]
+                } = section;
+                // return <path key={id} d={`M${a.x} ${a.y} L${b.x} ${b.y}`} />;
+                return (
+                  <path
+                    key={id}
+                    d={`M${a.x} ${a.y} C${c1.x} ${c1.y} ${c2.x} ${c2.y} ${b.x} ${b.y}`}
+                  />
+                );
+              });
+            })}
+        </g>
+      </svg>
     </div>
   );
 }

@@ -23,6 +23,7 @@
     "babel-polyfill": "^6.26.0",
     "common-tags": "^1.8.0",
     "d3-force": "^2.0.1",
+    "elkjs": "^0.6.1",
     "lz-string": "^1.4.4",
     "prismjs": "^1.19.0",
     "react": "^16.8.0",

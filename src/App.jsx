@@ -15,15 +15,22 @@ import "./App.scss";
 
 const presets = {
   number: `const value = 5;`,
-  string: `const value = "Hello";`,
+  circular: stripIndent`
+    const value = { b: 45 };
+    value.a = { c: value };
+  `,
   Kelley: stripIndent`
+    const prog = { title: "Programming", level: "reasonable" };
+    const bass = { title: "Playing double bass", level: "undetermined" };
+    const sleeping = { title: "Sleeping", level: "advanced" };
+
     const value = {
       name: "Kelley",
       age: 27,
       hobbies: [
-        { title: "Programming", level: "reasonable" },
-        { title: "Playing double bass", level: "undetermined" },
-        { title: "Sleeping", level: "advanced" }
+        prog,
+        bass,
+        sleeping
       ]
     };
   `
