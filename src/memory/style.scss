@@ -1,0 +1,21 @@
+.node {
+  &.cat-key {
+    fill: #777;
+  }
+
+  &.type-string {
+    font-style: italic;
+  }
+
+  &.type-number,
+  &.type-boolean {
+    font-weight: bold;
+    fill: black;
+  }
+
+  &.type-undefined,
+  &.type-null {
+    fill: #444;
+    text-decoration: underline;
+  }
+}

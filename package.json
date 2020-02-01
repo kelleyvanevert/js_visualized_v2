@@ -10,6 +10,9 @@
     "start": "parcel src/index.html",
     "clean": "rm -rf .cache dist"
   },
+  "alias": {
+    "react-dom": "@hot-loader/react-dom"
+  },
   "devDependencies": {
     "@babel/plugin-transform-runtime": "^7.8.3",
     "@babel/preset-react": "^7.8.3",
@@ -19,6 +22,8 @@
   },
   "dependencies": {
     "@babel/core": "^7.0.0-0",
+    "@hot-loader/react-dom": "^16.11.0",
+    "@types/react": "^15.0.0 || ^16.0.0",
     "babel-plugin-macros": "^2.8.0",
     "babel-polyfill": "^6.26.0",
     "common-tags": "^1.8.0",
@@ -26,8 +31,9 @@
     "elkjs": "^0.6.1",
     "lz-string": "^1.4.4",
     "prismjs": "^1.19.0",
-    "react": "^16.8.0",
-    "react-dom": "^16.8.0",
+    "react": "^16.0.0",
+    "react-dom": "^15.0.0 || ^16.0.0",
+    "react-hot-loader": "^4.12.19",
     "react-icons": "^3.8.0",
     "react-inspector": "^4.0.0",
     "react-range": "^1.4.9",
