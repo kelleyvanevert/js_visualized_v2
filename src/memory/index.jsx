@@ -4,14 +4,17 @@ export const CH = 16; // char height
 export const R = 0.6; // char width/height for "Menlo"
 export const CW = R * CH; // char width
 
-export const PY = 8;
-export const PX = 8;
+export const PY = 10;
+export const PX = 10;
+
+function keyWidth(key) {
+  const S = 0.85;
+  return CW * S * (2 + key.length);
+}
 
 function renderKey(key) {
   const S = 0.85;
-
-  return [
-    CW * S * (2 + key.length),
+  return (
     <text
       className={`node cat-key`}
       dominantBaseline="hanging"
@@ -22,7 +25,7 @@ function renderKey(key) {
     >
       {key}:
     </text>
-  ];
+  );
 }
 
 // Usage:
@@ -47,22 +50,17 @@ export function renderNode(
     const width = CW * valueStr.length;
 
     const graphNode = {
+      category,
+      type,
       id,
       height: CH,
-      width
+      width,
+      valueStr,
+      layoutOptions: {
+        // "org.eclipse.elk.layered.contentAlignment": "H_LEFT"
+        "elk.alignment": "LEFT"
+      }
     };
-
-    graphNode._jsx = (
-      <text
-        className={`node cat-primitive type-${type}`}
-        dominantBaseline="hanging"
-        lengthAdjust="spacingAndGlyphs"
-        textLength={width}
-        dy={CH / 8}
-      >
-        {valueStr}
-      </text>
-    );
 
     return [graphNode, rootNode];
   }
@@ -77,63 +75,46 @@ export function renderNode(
   if (!done[at]) {
     done[at] = graphNode;
 
-    const jsxPieces = [];
-
     const obj = heap[at];
 
-    const p = { top: 50, right: 40, bottom: 40, left: 80 };
+    const p = { top: PY, right: PX, bottom: PY, left: PX };
+
+    let maxWidth = 0;
 
     for (const [key, childNode] of obj.entries) {
-      const [keyWidth, keyEl] = renderKey(key);
       const [childGraphNode] = renderNode(
         [childNode, heap],
         `${id}-${key}`,
         done,
         rootNode
       );
-      jsxPieces.push(
-        <g key={`${key}-key`} transform={`translate(0, ${graphNode.height})`}>
-          {keyEl}
-        </g>
-      );
-      jsxPieces.push(
-        <g
-          key={`${key}-val`}
-          transform={`translate(${keyWidth}, ${graphNode.height})`}
-        >
-          {childGraphNode._jsx}
-        </g>
-      );
-      graphNode.height += childGraphNode.height + PY;
-      graphNode.width = Math.max(
-        graphNode.width,
-        keyWidth + childGraphNode.width
-      );
 
-      if (childGraphNode._isRef) {
-        graphNode.children.push(childGraphNode);
-      }
+      childGraphNode.prependKey = key;
+      childGraphNode.width += keyWidth(key);
+
+      // if (key.match(/^[0-9]+$/)) {
+      //   childGraphNode.layoutOptions["elk.processingOrder"] = parseInt(key);
+      // }
+
+      graphNode.children.push(childGraphNode);
+      maxWidth = Math.max(maxWidth, childGraphNode.width);
     }
 
+    graphNode.children.forEach(childGraphNode => {
+      if (childGraphNode.isRef) {
+        // console.log(childGraphNode.width, maxWidth);
+        childGraphNode.width = maxWidth;
+      }
+    });
+
     graphNode.layoutOptions = {
-      "elk.padding": `[top=${p.top},left=${p.left},bottom=${p.bottom},right=${p.right}]`
+      "org.eclipse.elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+      // "elk.alignment": "LEFT",
+      // "org.eclipse.elk.layered.contentAlignment": "[H_LEFT]",
+      // "org.eclipse.elk.layered.nodePlacement.bk.fixedAlignment": "LEFTUP",
+      "elk.padding": `[top=${p.top},left=${p.left},bottom=${p.bottom},right=${p.right}]`,
+      "org.eclipse.elk.spacing.nodeNode": PY
     };
-
-    graphNode.width += 2 * PX;
-
-    graphNode._jsx = (
-      <g className="node cat-compound">
-        <rect
-          width={graphNode.width}
-          height={graphNode.height}
-          fill="white"
-          stroke="black"
-          strokeWidth={2}
-          rx={8}
-        />
-        <g transform={`translate(${PX}, 0)`}>{jsxPieces}</g>
-      </g>
-    );
 
     if (id === "value") {
       return [graphNode, rootNode];
@@ -144,7 +125,8 @@ export function renderNode(
     id: `REF:${id}`,
     width: 12,
     height: CH,
-    _isRef: true
+    isRef: true,
+    layoutOptions: {}
   };
 
   // rootNode.children.push(refGraphNode);
@@ -156,13 +138,69 @@ export function renderNode(
     target: id
   });
 
-  refGraphNode._jsx = (
-    <g transform={`translate(6, ${CH / 2})`}>
-      <circle r={6} stroke="none" fill="black" />
+  return [refGraphNode];
+}
+
+export function GraphNode(props) {
+  const {
+    x,
+    y,
+    isRef,
+    category,
+    type,
+    width,
+    height,
+    valueStr,
+    children,
+    prependKey
+  } = props;
+
+  const actualWidth = prependKey ? width - keyWidth(prependKey) : width;
+
+  const x0 = prependKey ? keyWidth(prependKey) : 0;
+
+  return (
+    <g transform={`translate(${x}, ${y})`}>
+      {prependKey && renderKey(prependKey)}
+      {category === "primitive" ? (
+        <text
+          className={`node cat-primitive type-${type}`}
+          dominantBaseline="hanging"
+          lengthAdjust="spacingAndGlyphs"
+          textLength={actualWidth}
+          dy={CH / 8}
+          x={x0}
+        >
+          {valueStr}
+        </text>
+      ) : isRef ? (
+        <g>
+          <circle r={6} cx={x0 + 6} cy={CH / 2} stroke="none" fill="black" />
+          <path
+            stroke="black"
+            strokeWidth={2}
+            fill="none"
+            d={`M${x0 + 6}, ${CH / 2} L${width}, ${CH / 2}`}
+          />
+        </g>
+      ) : (
+        <g>
+          <rect
+            width={width}
+            height={height}
+            fill="white"
+            stroke="black"
+            strokeWidth={2}
+            rx={8}
+          />
+          {children &&
+            children.map(child => {
+              return <GraphNode key={child.id} {...child} />;
+            })}
+        </g>
+      )}
     </g>
   );
-
-  return [refGraphNode];
 }
 
 /*

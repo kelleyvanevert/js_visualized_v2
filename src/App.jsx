@@ -6,7 +6,7 @@ import ELK from "elkjs/lib/elk.bundled.js";
 
 import { describe } from "./lib/describe";
 
-import { renderNode, CH } from "./memory";
+import { renderNode, CH, GraphNode } from "./memory";
 import "./memory/style";
 
 import "./App.scss";
@@ -15,10 +15,27 @@ function App() {
   const [graph, set_graph] = useState();
 
   useEffect(() => {
+    // const value = {
+    //   name: "Kelley",
+    //   age: 27,
+    //   hobbies: [
+    //     "Playing piano",
+    //     { children: [{ id: "a-sub", width: 100, height: true }] },
+    //     { pi: 3.14 }
+    //   ]
+    // };
+
     const value = {
-      name: "Kelley",
-      age: 27,
-      hobbies: ["Playing piano", "having fun", 3.14]
+      emotion: "skeptical",
+      kelley: {
+        name: "Kelley",
+        age: 27,
+        job: "teacher",
+        hobbies: {
+          programming: true,
+          philosophy: ["Habermas", "Hobbes", "Nietzsche"]
+        }
+      }
     };
 
     const [graphNode, rootNode] = renderNode(describe(value));
@@ -64,15 +81,17 @@ function App() {
         "elk.algorithm": "layered",
         "elk.layered.feedbackEdges": true,
         "elk.edgeRouting": "SPLINES",
+        // "org.eclipse.elk.alignment": "LEFT",
         "elk.direction": "RIGHT",
-        // "org.eclipse.elk.layered.spacing.edgeNodeBetweenLayers": 40,
+        // "org.eclipse.elk.spacing.edgeNode": 50,
+        // "org.eclipse.elk.layered.spacing.edgeNodeBetweenLayers": 20,
         "org.eclipse.elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX",
-        "org.eclipse.elk.layered.wrapping.strategy": "MULTI_EDGE",
+        // "org.eclipse.elk.layered.wrapping.strategy": "MULTI_EDGE",
         "org.eclipse.elk.layered.wrapping.correctionFactor": 100,
         // "org.eclipse.elk.layered.edgeRouting.splines.mode": "SLOPPY",
-        // "org.eclipse.elk.layered.edgeRouting.splines.sloppy.layerSpacingFactor": 0.9
-        hierarchyHandling: "INCLUDE_CHILDREN",
-        "org.eclipse.elk.nodeSize.options": "[DEFAULT_MINIMUM_SIZE]"
+        // "org.eclipse.elk.layered.edgeRouting.splines.sloppy.layerSpacingFactor": 0.9,
+        hierarchyHandling: "INCLUDE_CHILDREN" // !important
+        // "org.eclipse.elk.layered.nodePlacement.bk.fixedAlignment": "LEFTUP"
       }
     };
 
@@ -112,38 +131,7 @@ function App() {
           fill="#eee"
         />
         {graph.children.map(child => {
-          return (
-            <g key={child.id} transform={`translate(${child.x}, ${child.y})`}>
-              {child._jsx || (
-                <rect
-                  width={child.width}
-                  height={child.height}
-                  fill="none"
-                  stroke="black"
-                  strokeWidth={1}
-                />
-              )}
-              {child.children &&
-                child.children.map(grandchild => {
-                  return (
-                    <g
-                      key={grandchild.id}
-                      transform={`translate(${grandchild.x}, ${grandchild.y})`}
-                    >
-                      {grandchild._jsx || (
-                        <rect
-                          width={grandchild.width}
-                          height={grandchild.height}
-                          fill="none"
-                          stroke="black"
-                          strokeWidth={1}
-                        />
-                      )}
-                    </g>
-                  );
-                })}
-            </g>
-          );
+          return <GraphNode key={child.id} {...child} />;
         })}
         <g strokeWidth={2} stroke="black" fill="none">
           {graph.edges.map(edge => {
