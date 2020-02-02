@@ -14,15 +14,13 @@ export default {
       console.log(item);
     }
   `,
-  // Alternatively:
-  // for (let i of [0,1,2,3,4]) {
-  //   console.log(i);
-  // }
-
-  // Or:
-  // [0,1,2,3,4].forEach(i => {
-  //   console.log(i);
-  // });
+  "Scoping of const/let/var": stripIndent`
+    for (let i of [0,1,2]) {
+      const a = "const is block-scoped";
+      let b = "let is also block-scoped";
+      var c = "var is function/global-scoped";
+    }
+  `,
   "While-loop": stripIndent`
     let i = 0;
     while (i < 5) {

@@ -94,30 +94,59 @@ export default function(babel, { ns = "__V__" } = {}) {
     }
   }
 
-  function meta(category, node, scope, time, extra = {}) {
+  function meta(category, node, scope, time) {
     // return json(node.type + "-" + time); // for easier debugging in the AST explorer
 
     const scopes = [];
     while (scope) {
-      const def = scope._defined || {};
-
-      const scopeEntries = Object.entries(scope.bindings).map(
-        ([id, binding]) => {
-          return [
-            id + (scope._original ? "" : " (!)"),
-            {
-              $ast: t.callExpression(t.identifier(ns + ".describe"), [
-                def[id] ||
-                (scopes.length === 0 && extra.def && extra.def.includes(id)) || // hacky!
-                binding.kind === "param" ||
-                binding.kind === "hoisted"
-                  ? t.identifier(id)
-                  : t.identifier("undefined")
-              ])
-            }
-          ];
-        }
-      );
+      const scopeEntries = Object.keys(scope.bindings).map(id => {
+        return [
+          id + (scope._original ? "" : " (!)"),
+          {
+            $ast: t.callExpression(t.identifier(ns + ".describe"), [
+              // Report on the variable. Nothing that the variable
+              //  might not be declared yet, we have to take caution
+              //  to catch undefinedness errors, thus use:
+              //
+              //        ((() => { try { return VARIABLE } catch { } })())
+              //
+              //  instead of just:
+              //
+              //        VARIABLE
+              //
+              // Thing I tried before:
+              // - Just set every variable declaration to be "var",
+              //    so that we could report on it verbatim
+              //   => goes wrong in loops where it shows the previous
+              //       iteraction's value because it was still in scope
+              //
+              //        for (let i = 0; i < 5; i++) {
+              //          // here, 'a' is still 2 on the second iteration
+              //          const a = 2;
+              //        }
+              // - Statically analyzing when variables have been declared
+              //   => this works quite well, except for situations like these,
+              //       which seem quite tricky to subsequently solve
+              //
+              //        const promise = fetch("...").then(res => {
+              //          // here, 'promise' is bookkept as not-yet-defined
+              //        })
+              t.callExpression(
+                t.arrowFunctionExpression(
+                  [],
+                  t.blockStatement([
+                    t.tryStatement(
+                      t.blockStatement([t.returnStatement(t.identifier(id))]),
+                      t.catchClause(null, t.blockStatement([]))
+                    )
+                  ])
+                ),
+                []
+              )
+            ])
+          }
+        ];
+      });
 
       if (scope._original && !scope._definitelySkip) {
         scopes.push(Object.fromEntries(scopeEntries));
@@ -136,23 +165,10 @@ export default function(babel, { ns = "__V__" } = {}) {
     return json(metadata);
   }
 
-  function REPORT(value, node, scope, time, extra = {}) {
-    // if (extra.reportOnExit) {
-    //   const expr = t.nullLiteral();
-    //   const { reportOnExit, ...rest } = extra;
-    //   expr._report_todo = [value, node, scope, time, rest];
-    //   return expr;
-    // }
-
+  function REPORT(value, node, scope, time) {
     return t.callExpression(t.identifier(ns + ".report"), [
       value || t.identifier("undefined"),
-      meta(
-        t.isExpression(node) ? "expression" : "statement",
-        node,
-        scope,
-        time,
-        extra
-      )
+      meta(t.isExpression(node) ? "expression" : "statement", node, scope, time)
     ]);
   }
 
@@ -165,46 +181,7 @@ export default function(babel, { ns = "__V__" } = {}) {
     );
   }
 
-  // node: `const { a, b: [c, ...d], ...e } = ...;`
-  // gather_defined_ids(node.id) ~> ["a", "c", "d", "e"]
-  function gather_defined_ids(node) {
-    if (t.isIdentifier(node)) {
-      // this is where it all ends :P
-      return [node.name];
-    } else if (t.isVariableDeclaration(node)) {
-      return node.declarations.map(gather_defined_ids).flat();
-    } else if (t.isVariableDeclarator(node)) {
-      return gather_defined_ids(node.id);
-    } else if (t.isObjectPattern(node)) {
-      return node.properties.map(gather_defined_ids).flat();
-    } else if (t.isObjectProperty(node)) {
-      return gather_defined_ids(node.value);
-    } else if (t.isArrayPattern(node)) {
-      return node.elements.map(gather_defined_ids).flat();
-    } else if (t.isRestElement(node)) {
-      return gather_defined_ids(node.argument);
-    } else if (t.isAssignmentPattern(node)) {
-      return gather_defined_ids(node.left);
-    } else {
-      console.warn("TODO implement gather_defined_ids for:", node.type);
-      return [];
-    }
-  }
-
   const visitor = {
-    VariableDeclaration(path) {
-      if (path.node.kind === "var") {
-        throw path.buildCodeFrameError("The `var` keyword is not supported");
-      }
-    },
-    VariableDeclarator: {
-      exit(path) {
-        const def = (path.scope._defined = path.scope._defined || {});
-        gather_defined_ids(path.node.id).forEach(id => {
-          def[id] = true;
-        });
-      }
-    },
     Program(path) {
       path.scope._original = true;
     },
