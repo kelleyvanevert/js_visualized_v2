@@ -24,7 +24,7 @@
     "babel-polyfill": "^6.26.0",
     "common-tags": "^1.8.0",
     "lz-string": "^1.4.4",
-    "prismjs": "^1.19.0",
+    "prismjs": "^1.23.0",
     "react": "^16.8.0",
     "react-dom": "^16.8.0",
     "react-icons": "^3.8.0",
