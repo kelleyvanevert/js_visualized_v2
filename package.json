@@ -5,18 +5,11 @@
   "browserslist": [
     "last 2 Chrome versions"
   ],
+  "prettier": {},
   "scripts": {
     "build": "parcel build src/index.html",
     "start": "parcel src/index.html src/worker/index.js",
-    "pub": "yarn build && scp -r dist/* kelley@klve.nl:prime/content.klve.nl/public/scratch/jsviz",
     "clean": "rm -rf .cache dist"
-  },
-  "devDependencies": {
-    "@babel/plugin-transform-runtime": "^7.8.3",
-    "@babel/preset-react": "^7.8.3",
-    "parcel-bundler": "^1.12.4",
-    "sass": "^1.24.5",
-    "typescript": "^3.7.5"
   },
   "dependencies": {
     "@babel/core": "^7.0.0-0",
@@ -33,5 +26,12 @@
     "react-simple-code-editor": "^0.11.0",
     "react-use": "^13.20.0",
     "styled-components": "^5.0.0"
+  },
+  "devDependencies": {
+    "@babel/plugin-transform-runtime": "^7.8.3",
+    "@babel/preset-react": "^7.8.3",
+    "parcel-bundler": "^1.12.4",
+    "sass": "^1.24.5",
+    "typescript": "^3.7.5"
   }
 }
